@@ -194,3 +194,9 @@
 .nav-links li a::after{content:'';position:absolute;left:12px;right:12px;bottom:5px;height:2px;background:var(--accent);border-radius:2px;transform:scaleX(0);transform-origin:left;transition:transform .3s ease}
 .nav-links li a:hover::after{transform:scaleX(1)}
 @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.btn::after,.nav-links li a::after{display:none}}
+html{scroll-behavior:smooth}
+.navbar.scrolled{height:58px;box-shadow:0 6px 24px rgba(15,23,42,.14);background:var(--nav-bg)}
+.back-to-top{position:fixed;bottom:26px;right:26px;width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#f5a04a);color:#fff;font-size:1.15rem;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 26px rgba(232,134,46,.45);opacity:0;visibility:hidden;transform:translateY(14px);transition:all .4s cubic-bezier(.4,0,.2,1);z-index:998}
+.back-to-top.show{opacity:1;visibility:visible;transform:none}
+.back-to-top:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(232,134,46,.6)}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

@@ -157,7 +157,7 @@
 .page-hero{padding:118px 0 34px;background-color:var(--bg-secondary);background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px);background-size:44px 44px;border-bottom:1px solid var(--border-light)}
 .section-more{text-align:center;margin-top:26px}.section-more .btn-secondary,.section-alt .btn-secondary{color:var(--text-primary);border-color:var(--border-color);background:var(--bg-card)}.section-more .btn-secondary:hover,.section-alt .btn-secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
 .section-more .btn{display:inline-flex}
-#cta .container{max-width:1200px}
+#cta .container{max-width:1200px}#cta.section-alt{background-image:none}
 
 /* ===== 多页架构 V21：子页去掉重复页头后，首个 section 顶部避让固定 navbar ===== */
 .page-first{padding-top:118px}

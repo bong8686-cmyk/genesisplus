@@ -196,6 +196,10 @@
 
 @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.btn::after,.nav-links li a::after{display:none}}
 
-.mode-card,.product-card,.case-card,.news-card{transition:transform .5s cubic-bezier(.4,0,.2,1),box-shadow var(--transition-medium),border-color var(--transition-medium)}
+.mode-card,.product-card,.case-card,.news-card{transition:transform .3s cubic-bezier(.2,.8,.3,1),box-shadow var(--transition-medium),border-color var(--transition-medium)}
 .mode-card::before,.product-card::before,.case-card::before,.news-card::before{content:'';position:absolute;inset:0;z-index:2;border-radius:inherit;opacity:0;transition:opacity .4s ease;background:radial-gradient(560px circle at var(--mx,50%) var(--my,50%),rgba(232,134,46,.12),transparent 42%);pointer-events:none}
 .mode-card:hover::before,.product-card:hover::before,.case-card:hover::before,.news-card:hover::before{opacity:1}
+
+.scope-grid,.products-grid,.cases-grid,.news-grid{perspective:900px}
+.mode-card,.product-card,.case-card,.news-card{transform-style:preserve-3d;will-change:transform}
+@media(prefers-reduced-motion:reduce){.mode-card:hover,.product-card:hover,.case-card:hover,.news-card:hover{transform:none}.mode-card:hover::before,.product-card:hover::before,.case-card:hover::before,.news-card:hover::before{display:none}}

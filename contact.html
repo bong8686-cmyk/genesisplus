@@ -21,8 +21,8 @@
 <script>try{var gpTheme=localStorage.getItem('gp-theme');if(gpTheme!=='light'&&gpTheme!=='dark'){gpTheme=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',gpTheme);}catch(e){}</script>
 <link rel="preconnect" href="https://miaoda.feishu.cn" crossorigin>
 <link href="https://miaoda.feishu.cn/fonts/css2?family=Inter:wght@400;500;600;700;800&family=Varela+Round&family=Space+Grotesk:wght@500;600;700&family=Playfair+Display:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261007b">
-<script src="assets/js/site.js?v=20261007b" defer></script>
+<link rel="stylesheet" href="assets/css/style.css?v=20261007c">
+<script src="assets/js/site.js?v=20261007c" defer></script>
 <link rel="alternate" hreflang="en" href="https://genesisplus.net/contact.html">
 <link rel="alternate" hreflang="zh-Hant" href="https://genesisplus.net/contact.html">
 <link rel="alternate" hreflang="zh-CN" href="https://genesisplus.net/contact.html">
@@ -61,7 +61,7 @@
                 <form class="contact-info-card" id="contactForm" onsubmit="return handleContactSubmit(event)">
                     <h3 style="font-size:1.05rem;font-weight:700;margin-bottom:16px;" data-i18n="formTitle">Send Us a Message</h3>
                     <div class="form-group"><input type="text" id="contactName" name="name" data-i18n-placeholder="formName" placeholder="Your Name" autocomplete="name" required></div>
-                    <div class="form-group"><input type="email" id="contactEmail" name="email" placeholder="Email Address" autocomplete="email" required></div>
+                    <div class="form-group"><input type="email" id="contactEmail" name="email" data-i18n-placeholder="formEmail" placeholder="Email Address" autocomplete="email" required></div>
                     <div class="form-group"><select id="contactType" name="inquiry_type"><option value="" disabled selected data-i18n="formTypeLabel">Inquiry Type</option><option value="OEM" data-i18n="formTypeOEM">OEM Manufacturing</option><option value="ODM" data-i18n="formTypeODM">ODM Design &amp; Manufacturing</option><option value="Sample" data-i18n="formTypeSample">Sample Making</option><option value="Bulk" data-i18n="formTypeBulk">Bulk Production</option><option value="Other" data-i18n="formTypeOther">Other</option></select></div>
                     <div class="form-group"><select id="contactQty" name="quantity"><option value="" disabled selected data-i18n="formQtyLabel">Estimated Quantity</option><option value="Under 1K" data-i18n="formQty1">Under 1K pcs</option><option value="1K-10K" data-i18n="formQty2">1K - 10K pcs</option><option value="10K-50K" data-i18n="formQty3">10K - 50K pcs</option><option value="50K+" data-i18n="formQty4">50K+ pcs</option><option value="TBD" data-i18n="formQty5">Not decided yet</option></select></div>
                     <div class="form-group"><select id="contactBudget" name="budget"><option value="" disabled selected data-i18n="formBudgetLabel">Budget Range</option><option value="Under $5K" data-i18n="formBudget1">Under $5K</option><option value="$5K-$20K" data-i18n="formBudget2">$5K - $20K</option><option value="$20K-$50K" data-i18n="formBudget3">$20K - $50K</option><option value="$50K+" data-i18n="formBudget4">$50K+</option><option value="TBD" data-i18n="formBudget5">To be discussed</option></select></div>

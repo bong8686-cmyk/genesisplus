@@ -306,7 +306,32 @@ const clientLogos = [
         function hideTyping() { const el = document.getElementById('chatTyping'); if (el) el.remove(); }
         function quickReply(key) { const map = { chatQuick1: 1, chatQuick2: 2, chatQuick3: 3, chatQuick4: 4, chatQuick5: 5, chatQuick8: 8 }; addChatMsg(t(key) || key, 'user'); botReply(map[key] || 1); }
         function sendChat() { const input = document.getElementById('chatInput'); if (!input) return; const text = input.value.trim(); if (!text) return; addChatMsg(text, 'user'); input.value = ''; botReply(0, text); }
-        function botReply(faqIdx, raw) { showTyping(); setTimeout(function() { hideTyping(); const reply = faqIdx ? t('faqA' + faqIdx) : getAutoReply(raw || ''); addChatMsg(reply, 'bot'); }, 900); }
+        var CHAT_API = 'https://genesisplus-lead-gen.prefumeshop.workers.dev/chat';
+        var chatHistory = [];
+        function botReply(faqIdx, raw) {
+            if (faqIdx) {
+                showTyping();
+                setTimeout(function() { hideTyping(); var reply = t('faqA' + faqIdx); addChatMsg(reply, 'bot'); chatHistory.push({role:'assistant',content:reply}); }, 700);
+                return;
+            }
+            chatHistory.push({role:'user',content:raw});
+            showTyping();
+            fetch(CHAT_API, {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({message:raw, language:currentLanguage, history:chatHistory.slice(-10)})
+            }).then(function(r){return r.json();}).then(function(data){
+                hideTyping();
+                var reply = data.reply || t('chatDefault');
+                addChatMsg(reply, 'bot');
+                chatHistory.push({role:'assistant',content:reply});
+            }).catch(function(){
+                hideTyping();
+                var reply = getAutoReply(raw || '');
+                addChatMsg(reply, 'bot');
+                chatHistory.push({role:'assistant',content:reply});
+            });
+        }
         function getAutoReply(text) { const l = text.toLowerCase(); if (/(moq|minimum|quantity|min\.?\s?order|数量|數量|最低|起订|起訂|수량|최소|最小|จำนวน|quantité|كمية|الحد)/.test(l)) return t('faqA1'); if (/(sample|prototype|打样|打樣|样品|樣品|샘플|サンプル|ตัวอย่าง|échantillon|عينة)/.test(l)) return t('faqA2'); if (/(lead\s?time|deliver|交期|货期|交貨|出貨|出货|납기|リードタイム|ระยะเวลา|délai|تسليم)/.test(l)) return t('faqA3'); if (/(payment|pay|付款|支付|결제|支払い|การชำระ|paiement|دفع)/.test(l)) return t('faqA4'); if (/(ship|logistic|delivery|物流|運輸|运输|配送|배송|配送|จัดส่ง|expédition|livraison|شحن)/.test(l)) return t('faqA5'); if (/(eco|recycl|環保|环保|친환경|環境|écolog|صديقة للبيئة|รักษ์โลก)/.test(l)) return t('faqA6'); if (/(custom|客制|客製|定制|定製|커스텀|カスタム|personnalis|تخصيص)/.test(l)) return t('faqA7'); if (/(quality|品质|品質|품질|品質|คุณภาพ|qualité|جودة)/.test(l)) return t('faqA8'); if (/(logo|print|印刷|打印|印製|로고|ロゴ|โลโก้|impression|شعار)/.test(l)) return t('faqA9'); if (/(foil|stamp|uv|emboss|finish|工艺|工藝|后加工|後加工|烫金|燙金|가공|후가공|仕上げ|finition|تشطيب)/.test(l)) return t('faqA10'); if (/(overseas|寄样|寄樣|해외|海外|étranger|خارج)/.test(l)) return t('faqA11'); return t('chatDefault'); }
         function showCallbackForm() { const online = isBusinessHoursHKT(); addChatMsg(t('chatCallback'), 'user'); setTimeout(function() { addChatMsg(online ? t('cbPromptOnline') : t('cbPromptOffline'), 'bot'); const body = document.getElementById('chatBody'); if (!body || document.getElementById('callbackForm')) return; const form = document.createElement('div'); form.className = 'chat-callback-form'; form.id = 'callbackForm'; form.innerHTML = '<div class="cf-field"><label>' + t('cbName') + '</label><input type="text" id="cbName" aria-label="' + t('cbName') + '"></div><div class="cf-field"><label>' + t('cbPhone') + '</label><input type="tel" id="cbPhone" aria-label="' + t('cbPhone') + '"></div><div class="cf-field"><label>' + t('cbQuestion') + '</label><textarea id="cbQuestion" rows="2" aria-label="' + t('cbQuestion') + '"></textarea></div><button class="cf-submit" onclick="submitCallback()">' + t('cbSubmit') + '</button><div class="cf-note">' + t('cbNote') + '</div>'; body.appendChild(form); body.scrollTop = body.scrollHeight; }, 600); }
         function submitCallback() { const name = (document.getElementById('cbName') || {}).value ? document.getElementById('cbName').value.trim() : ''; const phone = (document.getElementById('cbPhone') || {}).value ? document.getElementById('cbPhone').value.trim() : ''; if (!name || !phone) { alert(t('cbRequired')); return; } const question = (document.getElementById('cbQuestion') || {}).value ? document.getElementById('cbQuestion').value.trim() : ''; const online = isBusinessHoursHKT(); const subject = encodeURIComponent('[Callback Request] ' + name + ' - ' + phone); const bodyText = encodeURIComponent('Name: ' + name + '\nPhone/Email: ' + phone + '\nQuestion: ' + (question || '-') + '\nSubmitted: ' + new Date().toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong' }) + ' HKT'); window.location.href = 'mailto:sales@genesisplus.net?subject=' + subject + '&body=' + bodyText; const f = document.getElementById('callbackForm'); if (f) f.remove(); addChatMsg(online ? t('cbConfirmOnline') : t('cbConfirmOffline'), 'bot'); try { const records = JSON.parse(localStorage.getItem('gp_callbacks') || '[]'); records.push({ name: name, phone: phone, question: question, time: new Date().toISOString(), online: online }); localStorage.setItem('gp_callbacks', JSON.stringify(records)); } catch (e) {} }

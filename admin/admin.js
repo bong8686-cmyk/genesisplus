@@ -169,7 +169,7 @@
   }
   function switchTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["content", "email", "data", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
+    ["content", "email", "data", "ai", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
     if (tab === "data") loadData();
     if (tab === "email") loadEmailForm();
   }
@@ -255,6 +255,7 @@
         label.className = "k";
         label.textContent = k;
         const ta = document.createElement("textarea");
+        ta.dataset.key = k;
         ta.value = stored[k] !== undefined ? stored[k] : defaults[k];
         ta.addEventListener("input", () => {
           if (!contentState.diffs[lang]) contentState.diffs[lang] = {};
@@ -483,6 +484,198 @@
     finally { busy(false); }
   }
 
+  // ---- AI 助手 ----
+  async function aiCall(action, payload) {
+    return worker.call("/ai", { method: "POST", body: JSON.stringify({ action, ...payload }) });
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(() => toast("已複製 ✅")).catch(() => toast("複製失敗，請手動選取", "warn"));
+    } else {
+      toast("此瀏覽器不支援自動複製，請手動選取", "warn");
+    }
+  }
+  function aiResBox(title, inner) {
+    return `<div class="aires"><div class="ait" style="font-size:12px;color:var(--muted);margin-bottom:6px">${title}</div>${inner}</div>`;
+  }
+  function aiOutTextarea(value, extra = "") {
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return `<textarea class="aiout" readonly data-copy="${esc(value)}" style="min-height:64px">${esc(value)}</textarea>${extra}`;
+  }
+  function aiButtons(id) {
+    return `<div class="row" style="margin-top:6px;gap:8px">
+      <button data-copy="${id}">📋 複製</button>
+      <button data-apply="${id}">套用至編輯器</button>
+    </div>`;
+  }
+  // 將某欄位值寫入內容編輯器（切語系＋標記變更）
+  function applyToEditor(lang, key, value) {
+    if (!key) { toast("請先填欄位 Key 才能套用", "warn"); return; }
+    contentState.lang = lang;
+    buildLangPills();
+    renderContent();
+    const ta = document.querySelector(`#contentGroups textarea[data-key="${key}"]`);
+    if (!ta) { toast("找不到欄位 " + key, "err"); return; }
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+    setter.call(ta, value);
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    toast(`已套用至 ${lang} / ${key} — 記得按「儲存此語系」上線 ✅`);
+  }
+  // 開發信測試：以變體內容發到回復信箱
+  async function aiTestVariant(subject, body) {
+    let st = EMAIL_DEFAULTS;
+    try { const eff = await worker.call("/settings"); if (eff) st = { ...st, ...eff }; } catch (e) {}
+    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const cleanBody = esc(body).replace(/\[Sender\]/g, esc(st.from_name || "Cyrus Chow"));
+    const lines = cleanBody.split("\n").map((l) => (l.trim() ? l : "&nbsp;")).join("<br>");
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#374151;font-size:15px;line-height:1.7;">${lines}
+      <p style="margin-top:22px">Best regards,<br><strong>${esc(st.from_name || "Cyrus Chow")}</strong><br>
+      GenesisPlus Packaging · <a href="https://genesisplus.net">genesisplus.net</a></p>
+      <div style="margin-top:20px;padding-top:14px;border-top:1px solid #eee;font-size:12px;color:#999;line-height:1.6;">
+      GenesisPlus Packaging (HK) Company · Unit 12, 5/F, Industrial Building, Kwun Tong, Kowloon, Hong Kong<br>
+      You received this because our packaging services may be relevant to your business. To stop receiving emails, you can <a href="https://genesisplus-lead-gen.prefumeshop.workers.dev/unsubscribe?email=${encodeURIComponent(st.reply_to || "sales@genesisplus.net")}">Unsubscribe Here</a>.</div></div>`;
+    busy(true);
+    try {
+      const r = await worker.call("/test-email", { method: "POST", body: JSON.stringify({ to: st.reply_to || "sales@genesisplus.net", subject, html }) });
+      toast(`已發測試信到 ${r.to}（Resend id ${String(r.id).slice(0, 8)}…）✅`);
+    } catch (e) { toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+  // 翻譯助手
+  function aiTlSelected() {
+    return [...document.querySelectorAll("#aiTlDst input[type=checkbox]:checked")].map((c) => c.value);
+  }
+  async function aiTranslateRun() {
+    const text = $("aiTlText").value.trim();
+    if (!text) { toast("請輸入待翻譯文案", "warn"); return; }
+    const targets = aiTlSelected();
+    if (!targets.length) { toast("請至少選一個目標語系", "warn"); return; }
+    busy(true);
+    $("aiTlRes").innerHTML = `<div class="hint">翻譯中（約 5–25 秒）…</div>`;
+    try {
+      const { translations } = await aiCall("translate", { text, targetLangs: targets, sourceLang: $("aiTlSrc").value });
+      const key = $("aiTlKey").value.trim();
+      const rows = Object.entries(translations).map(([lang, v]) => {
+        const id = `aiTlOut_${lang}`;
+        return `<div style="margin-bottom:10px"><div class="k">${esc(lang)}</div>${aiOutTextarea(v, aiButtons(id))}</div>`;
+      }).join("");
+      $("aiTlRes").innerHTML = rows || '<div class="hint">沒有取得翻譯結果，請重試</div>';
+      $("aiTlRes").querySelectorAll("button[data-copy]").forEach((b) => b.addEventListener("click", () => {
+        const ta = b.closest("div.row").previousElementSibling;
+        copyText(ta.dataset.copy || ta.value);
+      }));
+      $("aiTlRes").querySelectorAll("button[data-apply]").forEach((b) => {
+        b.addEventListener("click", () => {
+          const lang = b.getAttribute("data-apply");
+          const ta = b.closest("div.row").previousElementSibling;
+          applyToEditor(lang, key, ta.value);
+        });
+      });
+    } catch (e) { $("aiTlRes").innerHTML = `<div class="hint err">${esc(e.message)}</div>`; toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+  // 潤色助手
+  async function aiPolishRun() {
+    const text = $("aiPlText").value.trim();
+    if (!text) { toast("請輸入原文案", "warn"); return; }
+    busy(true);
+    $("aiPlRes").innerHTML = `<div class="hint">潤色中（約 3–15 秒）…</div>`;
+    try {
+      const { text: out } = await aiCall("polish", { text, tone: $("aiPlTone").value });
+      $("aiPlRes").innerHTML = aiOutTextarea(out, aiButtons("aiPlOut"));
+      const b = $("aiPlRes").querySelector("button[data-copy]");
+      b.addEventListener("click", () => copyText($("aiPlRes").querySelector(".aiout").value));
+      $("aiPlRes").querySelector("button[data-apply]").addEventListener("click", () => {
+        applyToEditor(contentState.lang, $("aiPlKey").value.trim(), $("aiPlRes").querySelector(".aiout").value);
+      });
+    } catch (e) { $("aiPlRes").innerHTML = `<div class="hint err">${esc(e.message)}</div>`; toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+  // 開發信變體
+  async function aiEmailRun() {
+    busy(true);
+    $("aiEvRes").innerHTML = `<div class="hint">生成中（約 5–25 秒）…</div>`;
+    try {
+      const { variants } = await aiCall("email_variants", {
+        topic: $("aiEvTopic").value.trim(), market: $("aiEvMarket").value.trim(), count: Number($("aiEvCount").value),
+      });
+      const cards = variants.map((v, i) => {
+        const id = `aiEvOut_${i}`;
+        const esc2 = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
+          <div style="font-weight:700;margin-bottom:4px">主旨：${esc2(v.subject)}</div>
+          ${aiOutTextarea(v.body)}
+          <div class="row" style="margin-top:6px;gap:8px">
+            <button data-copy-v="${id}">📋 複製全文</button>
+            <button class="primary" data-test="${i}">✈ 發測試信到回復信箱</button>
+          </div>
+        </div>`;
+      }).join("");
+      $("aiEvRes").innerHTML = cards;
+      $("aiEvRes").querySelectorAll("button[data-copy-v]").forEach((b) => b.addEventListener("click", () => {
+        const ta = b.closest("div.row").previousElementSibling;
+        copyText((ta.dataset.copy || "") + "\n\nSubject: " + variants[Number(b.getAttribute("data-copy-v").split("_")[1])].subject);
+      }));
+      $("aiEvRes").querySelectorAll("button[data-test]").forEach((b) => b.addEventListener("click", () => {
+        const i = Number(b.getAttribute("data-test"));
+        const ta = b.closest("div.row").previousElementSibling;
+        aiTestVariant(variants[i].subject, ta.value);
+      }));
+    } catch (e) { $("aiEvRes").innerHTML = `<div class="hint err">${esc(e.message)}</div>`; toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+  // SEO 助手
+  async function aiSeoRun() {
+    const text = $("aiSeoText").value.trim();
+    if (!text) { toast("請輸入頁面文案", "warn"); return; }
+    busy(true);
+    $("aiSeoRes").innerHTML = `<div class="hint">分析中（約 3–15 秒）…</div>`;
+    try {
+      const r = await aiCall("seo", { page: $("aiSeoPage").value, text });
+      const esc2 = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const kw = (r.keywords || []).map((k) => `<span class="chip">${esc2(k)}</span>`).join(" ");
+      const meta = `${aiResBox("Meta Title", `<div class="aiout">${esc2(r.metaTitle)}</div>`)}
+        ${aiResBox("Meta Description", `<div class="aiout">${esc2(r.metaDescription)}</div>`)}`;
+      $("aiSeoRes").innerHTML = `${aiResBox("關鍵字", `<div>${kw}</div>`)}${meta}
+        <div class="row" style="margin-top:8px"><button data-seo-copy="1">📋 複製全部</button></div>`;
+      $("aiSeoRes").querySelector("[data-seo-copy]").addEventListener("click", () => {
+        copyText(`Keywords: ${(r.keywords || []).join(", ")}\nMeta Title: ${r.metaTitle}\nMeta Description: ${r.metaDescription}`);
+      });
+    } catch (e) { $("aiSeoRes").innerHTML = `<div class="hint err">${esc(e.message)}</div>`; toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+  function aiLoadCurrentLangText() {
+    const lang = contentState.lang;
+    const defaults = (window.GP_DEFAULTS && window.GP_DEFAULTS[lang]) || {};
+    const parts = Object.values(defaults).filter((v) => v && String(v).trim()).map((v) => String(v));
+    const text = parts.join("\n").replace(/<[^>]+>/g, "").slice(0, 4000);
+    $("aiSeoText").value = text;
+    toast(`已載入 ${lang} 語系的頁面文字（${text.length} 字元）`);
+  }
+  function buildAiLangChecks() {
+    const src = $("aiTlSrc");
+    if (!src.options.length) {
+      LANGS.forEach((l) => { const o = document.createElement("option"); o.value = l; o.textContent = l; src.appendChild(o); });
+    }
+    const box = $("aiTlDst");
+    box.innerHTML = "";
+    LANGS.forEach((l) => {
+      const lab = document.createElement("label");
+      lab.style.cssText = "display:inline-flex;align-items:center;gap:4px;margin:0 8px 6px 0;font-size:12px";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.value = l; cb.checked = l !== "en";
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(l));
+      box.appendChild(lab);
+    });
+    src.addEventListener("change", () => {
+      box.querySelectorAll("input").forEach((c) => {
+        c.disabled = c.value === src.value;
+        if (c.value === src.value) c.checked = false;
+      });
+    });
+    src.dispatchEvent(new Event("change"));
+  }
+
   // ---- 初始化 ----
   function init() {
     supabase._load();
@@ -516,6 +709,13 @@
         btn.textContent = prev.style.display === "block" ? "收起" : "查看全文";
       }
     });
+    // AI 助手
+    buildAiLangChecks();
+    $("aiTlBtn").addEventListener("click", aiTranslateRun);
+    $("aiPlBtn").addEventListener("click", aiPolishRun);
+    $("aiEvBtn").addEventListener("click", aiEmailRun);
+    $("aiSeoBtn").addEventListener("click", aiSeoRun);
+    $("aiSeoLoad").addEventListener("click", aiLoadCurrentLangText);
 
     if (supabase.session) {
       supabase._ensureToken().then(() => {

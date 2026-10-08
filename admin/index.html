@@ -85,6 +85,10 @@
   .modal-box .mt{font-size:15px;font-weight:700;margin-bottom:10px}
   .modal-box .mm{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px}
   .modal-box .mbtns{display:flex;gap:10px;justify-content:flex-end}
+  /* AI 助手 */
+  .aiout{background:#0d1016;border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;box-sizing:border-box;color:var(--text);font-size:13px;line-height:1.6;resize:vertical}
+  .chip{display:inline-block;background:rgba(245,158,11,.12);color:#f5b84c;border:1px solid rgba(245,158,11,.35);border-radius:999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0}
+  .err{color:#f87171}
 </style>
 </head>
 <body>
@@ -128,6 +132,7 @@
     <button data-tab="content" class="active">網站內容</button>
     <button data-tab="email">郵件設置</button>
     <button data-tab="data">發送數據</button>
+    <button data-tab="ai">🤖 AI 助手</button>
     <button data-tab="account">帳戶</button>
   </div>
 
@@ -219,6 +224,68 @@
     </div>
   </section>
 
+  <!-- AI 助手 -->
+  <section id="tab-ai" style="display:none">
+    <div class="card">
+      <h3>🌐 多語系翻譯</h3>
+      <p class="hint">把一段文案翻譯到所選語系（單次 AI 調用）。填了欄位 Key 可一鍵套用到內容編輯器。</p>
+      <div class="row">
+        <div class="grow"><label>來源語系</label><select id="aiTlSrc"></select></div>
+        <div class="grow"><label>目標語系</label><div class="langs" id="aiTlDst" style="margin-top:4px"></div></div>
+        <div class="grow" style="max-width:180px"><label>欄位 Key（選填）</label><input type="text" id="aiTlKey" placeholder="例如 heroTitle"></div>
+      </div>
+      <div style="margin-top:10px"><label>待翻譯文案</label><textarea id="aiTlText" style="min-height:80px" placeholder="輸入要翻譯的文案…"></textarea></div>
+      <div class="row" style="margin-top:10px">
+        <button class="primary" id="aiTlBtn">✨ 翻譯到所選語系</button>
+      </div>
+      <div id="aiTlRes" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>✍️ 文案潤色</h3>
+      <p class="hint">用不同語氣重寫文案（保留 HTML、保留原文語言）。</p>
+      <div class="row">
+        <div class="grow"><label>語氣</label><select id="aiPlTone">
+          <option value="professional">專業商務</option>
+          <option value="luxury">高端奢華</option>
+          <option value="friendly">親切友善</option>
+          <option value="concise">精簡有力</option>
+        </select></div>
+        <div class="grow" style="max-width:180px"><label>欄位 Key（選填）</label><input type="text" id="aiPlKey" placeholder="例如 heroSubtitle"></div>
+      </div>
+      <div style="margin-top:10px"><label>原文案</label><textarea id="aiPlText" style="min-height:80px" placeholder="輸入要潤色的文案…"></textarea></div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="aiPlBtn">✨ 產生潤色建議</button></div>
+      <div id="aiPlRes" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>📧 開發信變體生成</h3>
+      <p class="hint">生成多封內容不同的全英文開發信（防垃圾郵件），可複製或直接發測試信檢視。</p>
+      <div class="row">
+        <div class="grow"><label>主題（選填）</label><input type="text" id="aiEvTopic" placeholder="例如 custom skincare boxes"></div>
+        <div class="grow"><label>目標市場（選填）</label><input type="text" id="aiEvMarket" placeholder="例如 skincare brands in US"></div>
+        <div class="grow" style="max-width:150px"><label>數量</label><select id="aiEvCount">
+          <option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+        </select></div>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="aiEvBtn">✨ 生成變體</button></div>
+      <div id="aiEvRes" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>🔍 SEO 建議</h3>
+      <p class="hint">針對指定頁面給出關鍵字、Meta Title 與 Meta Description。</p>
+      <div class="row">
+        <div class="grow" style="max-width:220px"><label>頁面</label><select id="aiSeoPage">
+          <option value="Home">Home</option><option value="About">About</option><option value="Services">Services</option>
+          <option value="Products">Products</option><option value="Cases">Cases</option><option value="News">News</option>
+          <option value="FAQ">FAQ</option><option value="Contact">Contact</option>
+        </select></div>
+        <div class="grow" style="max-width:260px"><label>&nbsp;</label><button id="aiSeoLoad">⬇ 載入目前語系文字</button></div>
+      </div>
+      <div style="margin-top:10px"><label>頁面文案</label><textarea id="aiSeoText" style="min-height:80px" placeholder="輸入或載入頁面文案…"></textarea></div>
+      <div class="row" style="margin-top:10px"><button class="primary" id="aiSeoBtn">✨ 產生 SEO 建議</button></div>
+      <div id="aiSeoRes" style="margin-top:12px"></div>
+    </div>
+  </section>
+
   <!-- 帳戶 -->
   <section id="tab-account" style="display:none">
     <div class="card">
@@ -232,7 +299,7 @@
   </section>
 </div>
 
-<script src="admin_defaults.js"></script>
-<script src="admin.js"></script>
+<script src="admin_defaults.js?v=20261008a"></script>
+<script src="admin.js?v=20261008a"></script>
 </body>
 </html>

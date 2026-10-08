@@ -210,7 +210,7 @@
       const b = document.createElement("button");
       b.textContent = l;
       b.className = contentState.lang === l ? "active" : "";
-      b.addEventListener("click", () => { contentState.lang = l; buildLangPills(); renderContent(); });
+      b.addEventListener("click", () => { contentState.lang = l; buildLangPills(); renderContent(); if (pvOpen) pvLoad(); });
       box.appendChild(b);
     });
   }
@@ -255,6 +255,9 @@
         const label = document.createElement("div");
         label.className = "k";
         label.textContent = k;
+        label.style.cursor = "pointer";
+        label.title = "點擊可在上方預覽中定位此欄位";
+        label.addEventListener("click", () => pvHighlight(k));
         const ta = document.createElement("textarea");
         ta.dataset.key = k;
         ta.value = stored[k] !== undefined ? stored[k] : defaults[k];
@@ -874,6 +877,44 @@
     } catch (e) { toast(e.message, "err"); }
   }
 
+  // ---- 網站預覽（欄位 ↔ 位置 視覺化）----
+  let pvOpen = false;
+
+  function pvSrc() {
+    const page = $("pvPage").value;
+    return `../${page}?preview=1&lang=${encodeURIComponent(contentState.lang)}`;
+  }
+
+  function pvLoad() {
+    const f = $("pvFrame");
+    if (f) f.src = pvSrc();
+  }
+
+  function pvToggle() {
+    pvOpen = !pvOpen;
+    $("pvWrap").style.display = pvOpen ? "" : "none";
+    $("pvToggle").textContent = pvOpen ? "⏸ 關閉預覽" : "🔄 開啟預覽";
+    if (pvOpen) pvLoad();
+  }
+
+  function pvHighlight(key) {
+    const f = $("pvFrame");
+    if (pvOpen && f && f.contentWindow) {
+      f.contentWindow.postMessage({ type: "gp-highlight", key }, "*");
+    }
+  }
+
+  function pvPick(key) {
+    const ta = document.querySelector(`#contentGroups textarea[data-key="${key}"]`);
+    if (!ta) return;
+    const details = ta.closest("details");
+    if (details) details.open = true;
+    ta.scrollIntoView({ behavior: "smooth", block: "center" });
+    ta.style.outline = "3px solid #f59e0b";
+    setTimeout(() => { ta.style.outline = ""; }, 2200);
+    ta.focus();
+  }
+
   // ---- 初始化 ----
   function init() {
     supabase._load();
@@ -934,6 +975,14 @@
         const name = row ? row.children[0].textContent : "任務";
         ajShowResults(id, name);
       }
+    });
+
+    // 網站預覽
+    $("pvToggle").addEventListener("click", pvToggle);
+    $("pvPage").addEventListener("change", () => { if (pvOpen) pvLoad(); });
+    window.addEventListener("message", (e) => {
+      const d = e.data || {};
+      if (d.type === "gp-picked") pvPick(d.key);
     });
 
     if (supabase.session) {

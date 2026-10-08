@@ -482,3 +482,35 @@ const clientLogos = [
         function init() { currentLanguage = detectPreferredLang(); document.documentElement.lang = currentLanguage; const langSel0 = document.getElementById('langSelect'); if (langSel0) langSel0.value = currentLanguage; applyTheme(getInitialTheme()); buildChatWidget(); applyAllTranslations(); renderProducts(); renderCaseFilters(); renderCases(); renderClients(); renderScope(); renderScopeModes(); setActiveNav(); setupContactValidation(); generateParticles(); runPreloader(); const yearEl = document.getElementById('footerYear'); if (yearEl) yearEl.textContent = new Date().getFullYear(); setupMotionEffects(); setupSpotlight(); setupTilt(); setTimeout(animateHeroStats, 6500); }
         init();
         loadRemoteContent();
+
+        // ==== 後台預覽橋接（僅 ?preview=1 且於 iframe 內啟用）====
+        // 後台管理員：選欄位 → 此處高亮對應元素；點擊網頁元素 → 回傳欄位 Key
+        try {
+          if (location.search.indexOf('preview=1') >= 0) {
+            var gpLast = null;
+            function gpClear() {
+              if (gpLast) { gpLast.style.outline = ''; gpLast.style.outlineOffset = ''; gpLast = null; }
+            }
+            function gpHighlight(key) {
+              gpClear();
+              var el = document.querySelector('[data-i18n="' + key + '"]');
+              if (!el) return;
+              gpLast = el;
+              el.style.outline = '3px solid #f59e0b';
+              el.style.outlineOffset = '2px';
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            window.addEventListener('message', function (e) {
+              var d = e.data || {};
+              if (d.type === 'gp-highlight') gpHighlight(d.key);
+              if (d.type === 'gp-clear') gpClear();
+            });
+            document.addEventListener('click', function (e) {
+              var el = e.target.closest('[data-i18n]');
+              if (!el) return;
+              window.parent.postMessage({ type: 'gp-picked', key: el.getAttribute('data-i18n') }, '*');
+            }, true);
+            var gl = new URLSearchParams(location.search).get('lang');
+            if (gl && SITE_LANGS.indexOf(gl) >= 0) setLanguage(gl);
+          }
+        } catch (e) {}

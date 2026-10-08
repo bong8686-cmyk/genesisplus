@@ -148,18 +148,36 @@
   <!-- 內容 -->
   <section id="tab-content">
     <div class="card">
-      <h3>🌐 網站內容（8 語系）</h3>
-      <p class="hint">修改後按「儲存此語系」即時上線（網站會自動拉取覆寫值；未修改的欄位繼續用網站內建預設）。</p>
-      <div class="langs" id="langPills"></div>
-      <input type="text" class="searchbar" id="keySearch" placeholder="搜尋欄位…（例如 hero、faq、footer）">
+      <h3>👁 網站預覽（點欄位 → 預覽高亮該位置；點預覽文字 → 跳回欄位）</h3>
       <div class="row">
-        <button class="primary" id="saveContentBtn">💾 儲存此語系</button>
-        <button class="danger" id="resetContentBtn">重設此語系為網站預設</button>
-        <span class="hint" id="contentStatus" style="align-self:center"></span>
+        <div class="grow" style="max-width:240px"><label>頁面</label><select id="pvPage">
+          <option value="index.html">首頁 Home</option>
+          <option value="about.html">關於我們 About</option>
+          <option value="services.html">服務 Services</option>
+          <option value="products.html">產品 Products</option>
+          <option value="cases.html">案例 Cases</option>
+          <option value="news.html">新聞 News</option>
+          <option value="faq.html">FAQ</option>
+          <option value="contact.html">聯絡我們 Contact</option>
+        </select></div>
+        <div class="grow" style="max-width:170px"><label>&nbsp;</label><button class="primary" id="pvToggle">🔄 開啟預覽</button></div>
+      </div>
+      <div id="pvWrap" style="display:none;margin-top:10px">
+        <iframe id="pvFrame" title="網站預覽" style="width:100%;height:480px;border:1px solid var(--line);border-radius:8px;background:#fff"></iframe>
+        <p class="hint">預覽與編輯器使用同一份資料。動態產品/案例卡片欄位（productsData/casesData）不在此頁 HTML 中，屬程式渲染，無法高亮，但其文字仍可在下方編輯。</p>
       </div>
     </div>
     <div class="card">
-      <div class="groups" id="contentGroups"></div>
+      <h3>✏️ 內容編輯器</h3>
+      <p class="hint">按語系分頁編輯；點欄位 Key 名稱可在上方預覽中定位該文字的位置。</p>
+      <div class="row" style="margin-bottom:10px">
+        <div class="langs" id="langPills" style="margin:0"></div>
+        <div class="grow"><input type="text" id="keySearch" placeholder="🔍 搜尋欄位 Key…"></div>
+        <div style="align-self:center;font-size:12px;color:var(--muted)" id="contentStatus"></div>
+        <button class="primary" id="saveContentBtn">💾 儲存此語系</button>
+        <button id="resetContentBtn">↺ 重設</button>
+      </div>
+      <div id="contentGroups"></div>
     </div>
   </section>
 

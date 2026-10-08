@@ -169,9 +169,10 @@
   }
   function switchTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["content", "email", "data", "ai", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
+    ["content", "email", "data", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
     if (tab === "data") loadData();
     if (tab === "email") loadEmailForm();
+    if (tab === "aiJobs") ajLoad();
   }
 
   // ---- 內容分組 ----
@@ -676,6 +677,203 @@
     src.dispatchEvent(new Event("change"));
   }
 
+  // ---- AI 自動任務（獨立運作，排程由 Worker 執行）----
+  const AJ_ACTIONS = {
+    translate: "🌐 多語系翻譯",
+    polish: "✍️ 文案潤色",
+    email_variants: "📧 開發信變體",
+    seo: "🔍 SEO 建議",
+  };
+  const AJ_TARGET_LANGS = ["zh-Hant", "zh-CN", "ko", "ja", "th", "fr", "ar"];
+  const AJ_PAGES = ["Home", "About", "Services", "Products", "Cases", "News", "FAQ", "Contact"];
+
+  function renderAjParams() {
+    const action = $("ajAction").value;
+    let html = "";
+    if (action === "translate") {
+      html = `<div class="row">
+        <div class="grow" style="max-width:220px"><label>來源語系</label><select id="ajpSource">
+          ${LANGS.map((l) => `<option value="${l}" ${l === "en" ? "selected" : ""}>${l}</option>`).join("")}
+        </select></div>
+        <div class="grow"><label>目標語系</label><div class="langs" id="ajpTargets" style="margin:10px 0 0">
+          ${AJ_TARGET_LANGS.map((l) => `<button data-lang="${l}" class="${l === "zh-Hant" ? "active" : ""}">${l}</button>`).join("")}
+        </div></div>
+      </div>
+      <div style="margin-top:10px"><label>待翻譯文案</label><textarea id="ajpText" style="min-height:70px" placeholder="輸入要翻譯的文案…"></textarea></div>`;
+    } else if (action === "polish") {
+      html = `<div class="row"><div class="grow" style="max-width:220px"><label>語氣</label><select id="ajpTone">
+        <option value="professional">專業商務</option><option value="luxury">高端奢華</option>
+        <option value="friendly">親切友善</option><option value="concise">精簡有力</option>
+      </select></div></div>
+      <div style="margin-top:10px"><label>原文案</label><textarea id="ajpText" style="min-height:70px" placeholder="輸入要潤色的文案…"></textarea></div>`;
+    } else if (action === "email_variants") {
+      html = `<div class="row">
+        <div class="grow"><label>主題（選填）</label><input type="text" id="ajpTopic" placeholder="例如 custom skincare boxes"></div>
+        <div class="grow"><label>目標市場（選填）</label><input type="text" id="ajpMarket" placeholder="例如 skincare brands in US"></div>
+        <div class="grow" style="max-width:150px"><label>數量</label><select id="ajpCount">
+          <option value="2">2</option><option value="3" selected>3</option><option value="4">4</option><option value="5">5</option>
+        </select></div>
+      </div>`;
+    } else {
+      html = `<div class="row"><div class="grow" style="max-width:220px"><label>頁面</label><select id="ajpPage">
+        ${AJ_PAGES.map((p) => `<option value="${p}">${p}</option>`).join("")}
+      </select></div></div>
+      <div style="margin-top:10px"><label>頁面文案</label><textarea id="ajpText" style="min-height:70px" placeholder="輸入頁面文案…"></textarea></div>`;
+    }
+    $("ajParams").innerHTML = html;
+    $("ajParams").addEventListener("click", (e) => {
+      const b = e.target.closest("#ajpTargets button");
+      if (b) b.classList.toggle("active");
+    });
+  }
+
+  function ajCollectParams(action) {
+    const params = {};
+    if (action === "translate") {
+      params.text = $("ajpText").value;
+      params.sourceLang = $("ajpSource").value;
+      params.targetLangs = [...document.querySelectorAll("#ajpTargets button.active")].map((b) => b.dataset.lang);
+    } else if (action === "polish") {
+      params.text = $("ajpText").value;
+      params.tone = $("ajpTone").value;
+    } else if (action === "email_variants") {
+      params.topic = $("ajpTopic").value;
+      params.market = $("ajpMarket").value;
+      params.count = Number($("ajpCount").value);
+    } else {
+      params.page = $("ajpPage").value;
+      params.text = $("ajpText").value;
+    }
+    return params;
+  }
+
+  function fmtLocal(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("zh-HK", { hour12: false });
+  }
+
+  function ajStatusPill(job) {
+    if (!job.enabled) return '<span class="pill off">已停用</span>';
+    if (job.last_status === "ok") return '<span class="pill ok">上次成功</span>';
+    if (job.last_status === "error") return '<span class="pill err">上次失敗</span>';
+    return '<span class="pill off">等待執行</span>';
+  }
+
+  async function ajLoad() {
+    try {
+      const res = await worker.call("/ai/jobs");
+      const jobs = (res && res.jobs) || [];
+      const box = $("ajList");
+      if (!jobs.length) {
+        box.innerHTML = '<p class="hint">還沒有任務。用上方表單建立第一個自動任務。</p>';
+        return;
+      }
+      box.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>名稱</th><th>動作</th><th>排程 (UTC)</th><th>狀態</th><th>上次執行</th><th>下次執行</th><th>操作</th></tr></thead><tbody>
+        ${jobs.map((j) => `<tr class="jobrow">
+          <td>${esc(j.name)}</td>
+          <td>${esc(AJ_ACTIONS[j.action] || j.action)}</td>
+          <td><code>${esc(j.schedule)}</code></td>
+          <td>${ajStatusPill(j)}</td>
+          <td>${fmtLocal(j.last_run_at)}</td>
+          <td>${fmtLocal(j.next_run_at)}</td>
+          <td class="ops">
+            <button data-act="run" data-id="${j.id}">▶ 立即執行</button>
+            <button data-act="results" data-id="${j.id}">📄 結果</button>
+            <button data-act="toggle" data-id="${j.id}" data-on="${j.enabled}">${j.enabled ? "停用" : "啟用"}</button>
+            <button data-act="del" data-id="${j.id}">🗑 刪除</button>
+          </td>
+        </tr>`).join("")}
+      </tbody></table></div>`;
+    } catch (e) {
+      $("ajList").innerHTML = `<p class="hint">⚠️ ${esc(e.message)}</p>`;
+    }
+  }
+
+  async function ajCreate() {
+    const action = $("ajAction").value;
+    const params = ajCollectParams(action);
+    const name = $("ajName").value.trim() || AJ_ACTIONS[action];
+    const schedule = $("ajCron").value.trim();
+    if (!/^[0-9*\/,\- ]{5,60}$/.test(schedule)) { toast("排程格式不正確（需 5 欄位 cron，例如 0 1 * * *）", "warn"); return; }
+    if (action === "translate" && (!params.targetLangs || !params.targetLangs.length)) { toast("請至少選一個目標語系", "warn"); return; }
+    if ((action === "translate" || action === "polish" || action === "seo") && !String(params.text || "").trim()) { toast("請填寫文案內容", "warn"); return; }
+    busy(true);
+    try {
+      await worker.call("/ai/jobs", { method: "POST", body: JSON.stringify({ name, action, params, schedule, enabled: $("ajEnabled").checked }) });
+      toast("任務已建立 ✅ 到期會自動執行");
+      $("ajName").value = "";
+      await ajLoad();
+    } catch (e) { toast(e.message, "err"); }
+    finally { busy(false); }
+  }
+
+  async function ajRun(id, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = "執行中…"; }
+    try {
+      const res = await worker.call("/ai/jobs/run", { method: "POST", body: JSON.stringify({ id }) });
+      const r = res && res.result;
+      if (r && r.ok) toast("執行完成 ✅ 結果已記錄");
+      else toast("執行失敗：" + ((r && r.error) || "未知錯誤"), "err");
+      await ajLoad();
+    } catch (e) { toast(e.message, "err"); await ajLoad(); }
+  }
+
+  async function ajToggle(id, enabled) {
+    try {
+      await worker.call("/ai/jobs/update", { method: "POST", body: JSON.stringify({ id, enabled: !enabled }) });
+      toast(enabled ? "已停用" : "已啟用 ✅");
+      await ajLoad();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function ajDelete(id, btn) {
+    if (!btn.dataset.confirm) {
+      btn.dataset.confirm = "1";
+      btn.textContent = "確認刪除？";
+      setTimeout(() => { delete btn.dataset.confirm; btn.textContent = "🗑 刪除"; }, 3500);
+      return;
+    }
+    try {
+      await worker.call("/ai/jobs/delete", { method: "POST", body: JSON.stringify({ id }) });
+      toast("已刪除");
+      await ajLoad();
+    } catch (e) { toast(e.message, "err"); }
+  }
+
+  async function ajShowResults(id, name) {
+    try {
+      const res = await worker.call(`/ai/jobs/results?job_id=${id}&limit=10`);
+      const results = (res && res.results) || [];
+      $("ajResultsCard").style.display = "";
+      $("ajResultsTitle").textContent = `📄 ${name} — 最近 ${results.length} 次執行`;
+      if (!results.length) {
+        $("ajResults").innerHTML = '<p class="hint">還沒有執行記錄。按「▶ 立即執行」跑一次，或等排程觸發。</p>';
+        return;
+      }
+      const parts = [];
+      results.forEach((r) => {
+        const head = `<div style="color:var(--muted);margin-bottom:4px">${fmtLocal(r.run_at)} · ${r.trigger === "manual" ? "手動" : "排程"} · <span class="pill ${r.status === "ok" ? "ok" : "err"}">${r.status === "ok" ? "成功" : "失敗"}</span>${r.error ? " · " + esc(r.error) : ""}</div>`;
+        let body = "";
+        if (r.status === "ok" && r.output) {
+          const out = r.output;
+          if (out.translations) {
+            body = Object.entries(out.translations).map(([l, v]) => `<div><b>${esc(l)}</b><div class="ajres">${esc(v)}</div></div>`).join("");
+          } else if (out.variants) {
+            body = out.variants.map((v, i) => `<div><b>變體 ${i + 1}</b><div class="ajres">SUBJECT: ${esc(v.subject)}\n\n${esc(v.body)}</div></div>`).join("");
+          } else {
+            body = `<div class="ajres">${esc(JSON.stringify(out, null, 2))}</div>`;
+          }
+        } else {
+          body = `<div class="ajres">${esc(r.error || "無輸出")}</div>`;
+        }
+        parts.push(`<div style="margin-bottom:16px;border-bottom:1px solid var(--line);padding-bottom:12px">${head}${body}</div>`);
+      });
+      $("ajResults").innerHTML = parts.join("");
+    } catch (e) { toast(e.message, "err"); }
+  }
+
   // ---- 初始化 ----
   function init() {
     supabase._load();
@@ -716,6 +914,27 @@
     $("aiEvBtn").addEventListener("click", aiEmailRun);
     $("aiSeoBtn").addEventListener("click", aiSeoRun);
     $("aiSeoLoad").addEventListener("click", aiLoadCurrentLangText);
+
+    // AI 自動任務
+    $("ajAction").addEventListener("change", renderAjParams);
+    renderAjParams();
+    document.querySelectorAll("button.preset").forEach((b) => b.addEventListener("click", () => { $("ajCron").value = b.dataset.cron; }));
+    $("ajCreateBtn").addEventListener("click", ajCreate);
+    $("ajRefreshBtn").addEventListener("click", ajLoad);
+    $("ajList").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      const act = btn.dataset.act;
+      if (act === "run") ajRun(id, btn);
+      else if (act === "toggle") ajToggle(id, btn.dataset.on === "true");
+      else if (act === "del") ajDelete(id, btn);
+      else if (act === "results") {
+        const row = btn.closest("tr");
+        const name = row ? row.children[0].textContent : "任務";
+        ajShowResults(id, name);
+      }
+    });
 
     if (supabase.session) {
       supabase._ensureToken().then(() => {

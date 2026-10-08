@@ -21,6 +21,7 @@
   button:hover{border-color:var(--accent2)}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
   button.primary:hover{background:var(--accent2)}
+  button.preset{padding:5px 10px;font-size:12px;border-radius:8px}
   button.danger{background:transparent;border-color:var(--red);color:var(--red)}
   button.ghost{background:transparent}
   input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{
@@ -87,6 +88,13 @@
   .modal-box .mbtns{display:flex;gap:10px;justify-content:flex-end}
   /* AI 助手 */
   .aiout{background:#0d1016;border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;box-sizing:border-box;color:var(--text);font-size:13px;line-height:1.6;resize:vertical}
+  .pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .pill.ok{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+  .pill.err{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+  .pill.off{background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.3)}
+  .jobrow td{font-size:12px}
+  .jobrow .ops button{margin-right:6px;font-size:12px;padding:3px 8px;border-radius:6px}
+  .ajres{background:#0d1016;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all}
   .chip{display:inline-block;background:rgba(245,158,11,.12);color:#f5b84c;border:1px solid rgba(245,158,11,.35);border-radius:999px;padding:2px 10px;font-size:12px;margin:0 6px 6px 0}
   .err{color:#f87171}
 </style>
@@ -133,6 +141,7 @@
     <button data-tab="email">郵件設置</button>
     <button data-tab="data">發送數據</button>
     <button data-tab="ai">🤖 AI 助手</button>
+    <button data-tab="aiJobs">⏰ AI 自動任務</button>
     <button data-tab="account">帳戶</button>
   </div>
 
@@ -283,6 +292,46 @@
       <div style="margin-top:10px"><label>頁面文案</label><textarea id="aiSeoText" style="min-height:80px" placeholder="輸入或載入頁面文案…"></textarea></div>
       <div class="row" style="margin-top:10px"><button class="primary" id="aiSeoBtn">✨ 產生 SEO 建議</button></div>
       <div id="aiSeoRes" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- AI 自動任務（獨立運作） -->
+  <section id="tab-aiJobs" style="display:none">
+    <div class="card">
+      <h3>⏰ 建立自動 AI 任務</h3>
+      <p class="hint">任務由 Worker 排程執行（Gemini API），不佔用豆包流量；每次執行的結果都會記錄下來，可在下方查看。排程時間以 <strong>UTC</strong> 儲存（香港時間 = UTC+8）。</p>
+      <div class="row">
+        <div class="grow"><label>任務名稱</label><input type="text" id="ajName" placeholder="例如 每日首頁文案翻譯"></div>
+        <div class="grow" style="max-width:220px"><label>動作</label><select id="ajAction">
+          <option value="translate">🌐 多語系翻譯</option>
+          <option value="polish">✍️ 文案潤色</option>
+          <option value="email_variants">📧 開發信變體</option>
+          <option value="seo">🔍 SEO 建議</option>
+        </select></div>
+        <div class="grow" style="max-width:260px"><label>排程（cron，UTC）</label><input type="text" id="ajCron" value="0 1 * * *" placeholder="例如 0 1 * * *（每日 09:00 港時）"></div>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button type="button" class="preset" data-cron="0 * * * *">每小時</button>
+        <button type="button" class="preset" data-cron="0 1 * * *">每日 09:00（港時）</button>
+        <button type="button" class="preset" data-cron="0 4 * * *">每日 12:00（港時）</button>
+        <button type="button" class="preset" data-cron="0 1 * * 1">每週一 09:00（港時）</button>
+        <span style="font-size:12px;color:var(--muted);align-self:center">點按鈕填入排程</span>
+      </div>
+      <div id="ajParams" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:10px;align-items:center">
+        <label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="ajEnabled" checked> 啟用</label>
+        <button class="primary" id="ajCreateBtn">➕ 建立任務</button>
+        <button id="ajRefreshBtn">↻ 重新整理列表</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📋 任務列表</h3>
+      <p class="hint">「立即執行」會立刻跑一次並記錄結果，不影響下次排程。</p>
+      <div id="ajList"><p class="hint">載入中…</p></div>
+    </div>
+    <div class="card" id="ajResultsCard" style="display:none">
+      <h3 id="ajResultsTitle">📄 執行結果</h3>
+      <div id="ajResults" style="font-size:12px"></div>
     </div>
   </section>
 

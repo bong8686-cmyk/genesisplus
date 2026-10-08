@@ -150,6 +150,32 @@
             }
         };
 
+        // === GenesisPlus 後台內容整合（Supabase）===
+        // 內建內容為預設；後台儲存的覆寫值在啟動時拉取並合併，後台不可用時完全不影響網站
+        const GP_SUPABASE = { url: "https://xwhhsoppcpkijxxychjm.supabase.co", anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh3aGhzb3BwY3BraWp4eHljaGptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NjA3NjcsImV4cCI6MjEwNDQzNjc2N30.nxtS7htIk_lqBfSEc0KRxsTks0efCyrLp-w0nGfufrU" };
+        const GP_REMOTE_CONTENT = { merged: false };
+        async function loadRemoteContent() {
+          try {
+            const resp = await fetch(GP_SUPABASE.url + "/rest/v1/site_content?select=lang,data&limit=20", {
+              headers: { apikey: GP_SUPABASE.anonKey, Authorization: "Bearer " + GP_SUPABASE.anonKey, "Accept-Profile": "genesisplus" },
+            });
+            if (!resp.ok) return;
+            const rows = await resp.json();
+            if (!Array.isArray(rows)) return;
+            let changed = false;
+            for (const row of rows) {
+              const lang = row.lang;
+              const data = row.data;
+              if (!translations[lang] || !data || typeof data !== "object") continue;
+              for (const k in data) {
+                if (typeof data[k] === "string") { translations[lang][k] = data[k]; changed = true; }
+              }
+            }
+            GP_REMOTE_CONTENT.merged = true;
+            if (changed) { try { applyAllTranslations(); } catch (e) {} }
+          } catch (e) { /* 後台不可用 → 用內建內容 */ }
+        }
+
         const productsData = [
             { id:'shopping-bag', icon:'🛍️', nameKey:'productShoppingBag', img:'images/shopping_bag.jpg', desc:{'en':'Durable and stylish shopping bag.','zh-Hant':'耐用時尚的購物袋。','zh-CN':'耐用时尚的购物袋。','ko':'내구성 있고 스타일리시한 쇼핑백.','ja':'耐久性がありスタイリッシュなショッピングバッグ。','th':'กระเป๋าช้อปปิ้งที่ทนทานและมีสไตล์','fr':'Sac de courses durable et élégant.','ar':'حقيبة تسوق متينة وأنيقة.'}, benefits:{'en':['Reusable','Multiple materials','Custom printing','Strong load capacity'],'zh-Hant':['可重複使用','多種材質','客製化印刷','承重力強'],'zh-CN':['可重复使用','多种材质','客制化印刷','承重力强'],'ko':['재사용 가능','다양한 소재','맞춤 인쇄','강한 하중 지지'],'ja':['繰り返し使える','多様な素材','カスタムプリント','強度に優れる'],'th':['ใช้ซ้ำได้','วัสดุหลากหลาย','พิมพ์ลวดลายตามสั่ง','รับน้ำหนักได้ดี'],'fr':['Réutilisable','Matériaux multiples','Impression personnalisée','Forte capacité de charge'],'ar':['قابلة لإعادة الاستخدام','مواد متعددة','طباعة مخصصة','قدرة تحمل قوية']}},
             { id:'folding-box', icon:'📦', nameKey:'productFoldingBox', img:'images/cardbox.jpg', desc:{'en':'Foldable design saves shipping space.','zh-Hant':'可折疊設計，節省運輸空間。','zh-CN':'可折叠设计，节省运输空间。','ko':'접이식 디자인으로 운송 공간을 절약합니다.','ja':'折りたたみ式で輸送スペースを節約。','th':'ดีไซน์พับได้ ประหยัดพื้นที่ขนส่ง','fr':'Le design pliable économise l’espace de transport.','ar':'تصميم قابل للطي يوفر مساحة الشحن.'}, benefits:{'en':['Foldable design','Ideal for e-commerce','Multiple paper types','Customizable'],'zh-Hant':['可折疊設計','適合電商','多種紙質','可客製化'],'zh-CN':['可折叠设计','适合电商','多种纸质','可客制化'],'ko':['접이식 디자인','이커머스에 적합','다양한 종이 재질','맞춤 제작 가능'],'ja':['折りたたみ式','ECに最適','多様な紙質','カスタマイズ可能'],'th':['ดีไซน์พับได้','เหมาะสำหรับอีคอมเมิร์ซ','กระดาษหลากหลายชนิด','ปรับแต่งได้'],'fr':['Design pliable','Idéal pour le e-commerce','Multiples types de papier','Personnalisable'],'ar':['تصميم قابل للطي','مثالي للتجارة الإلكترونية','أنواع ورق متعددة','قابل للتخصيص']}},
@@ -290,7 +316,7 @@ const clientLogos = [
             if (firstSignal === 'zh') { if (tzLang === 'zh-Hant' || tzLang === 'zh-CN') return tzLang; return 'en'; }
             return tzLang || 'en';
         }
-        function applyAllTranslations() { document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (translations[currentLanguage]?.[key]) { const val = translations[currentLanguage][key]; if (val.includes('<br>')) el.innerHTML = val; else el.textContent = val; } }); document.querySelectorAll('[data-i18n-nav]').forEach(link => { link.textContent = t('nav_' + link.getAttribute('data-i18n-nav')); }); document.querySelectorAll('[data-i18n-mobile]').forEach(link => { link.textContent = t('nav_' + link.getAttribute('data-i18n-mobile')); }); document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); }); const pageKey = document.body.getAttribute('data-page') || 'home'; document.title = 'GenesisPlus Packaging | ' + t('nav_' + pageKey); }
+        function applyAllTranslations() { document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if (translations[currentLanguage]?.[key]) { const val = translations[currentLanguage][key]; if (/<\w/.test(val)) el.innerHTML = val; else el.textContent = val; } }); document.querySelectorAll('[data-i18n-nav]').forEach(link => { link.textContent = t('nav_' + link.getAttribute('data-i18n-nav')); }); document.querySelectorAll('[data-i18n-mobile]').forEach(link => { link.textContent = t('nav_' + link.getAttribute('data-i18n-mobile')); }); document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.getAttribute('data-i18n-placeholder')); }); const pageKey = document.body.getAttribute('data-page') || 'home'; document.title = 'GenesisPlus Packaging | ' + t('nav_' + pageKey); }
         function getInitialTheme() { try { const saved = localStorage.getItem('gp-theme'); if (saved === 'light' || saved === 'dark') return saved; } catch (e) {} return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
         function applyTheme(theme) { currentTheme = theme; document.documentElement.setAttribute('data-theme', theme); document.getElementById('themeToggle').textContent = theme === 'light' ? '🌙' : '☀️'; }
         function toggleTheme() { applyTheme(currentTheme === 'light' ? 'dark' : 'light'); try { localStorage.setItem('gp-theme', currentTheme); } catch (e) {} }
@@ -455,3 +481,4 @@ const clientLogos = [
         function setupTilt() { try { const cards = document.querySelectorAll('.mode-card,.product-card,.case-card,.news-card,.scope-card'); if (!cards.length) return; cards.forEach(card => { const isMode = card.classList.contains('mode-card'); const isNews = card.classList.contains('news-card'); const isScope = card.classList.contains('scope-card'); const lift = (isMode || isScope) ? -6 : isNews ? -4 : -5; const scale = (isMode || isNews || isScope) ? 1.02 : 1.03; card.addEventListener('mousemove', function(e) { const r = card.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width; const py = (e.clientY - r.top) / r.height; const rx = (0.5 - py) * 8; const ry = (px - 0.5) * 8; card.style.transform = 'translateY(' + lift + 'px) scale(' + scale + ') rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)'; }); card.addEventListener('mouseleave', function() { card.style.transform = ''; }); }); } catch(e) {} }
         function init() { currentLanguage = detectPreferredLang(); document.documentElement.lang = currentLanguage; const langSel0 = document.getElementById('langSelect'); if (langSel0) langSel0.value = currentLanguage; applyTheme(getInitialTheme()); buildChatWidget(); applyAllTranslations(); renderProducts(); renderCaseFilters(); renderCases(); renderClients(); renderScope(); renderScopeModes(); setActiveNav(); setupContactValidation(); generateParticles(); runPreloader(); const yearEl = document.getElementById('footerYear'); if (yearEl) yearEl.textContent = new Date().getFullYear(); setupMotionEffects(); setupSpotlight(); setupTilt(); setTimeout(animateHeroStats, 6500); }
         init();
+        loadRemoteContent();

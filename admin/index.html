@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenesisPlus 管理後台</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel2:#1e222c; --line:#2a2f3b;
+    --text:#e6e8ee; --muted:#9aa1b2; --accent:#B45309; --accent2:#d97706;
+    --green:#22c55e; --red:#ef4444; --blue:#3b82f6;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"PingFang HK","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 16px 80px}
+  header.top{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:20px}
+  header.top .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px}
+  header.top h1{font-size:17px;font-weight:700;flex:1}
+  header.top .user{font-size:12px;color:var(--muted)}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent2)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.primary:hover{background:var(--accent2)}
+  button.danger{background:transparent;border-color:var(--red);color:var(--red)}
+  button.ghost{background:transparent}
+  input[type=text],input[type=email],input[type=password],input[type=number],select,textarea{
+    width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;color:var(--text);
+    padding:9px 12px;font-size:13px;font-family:inherit;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent2)}
+  textarea{min-height:64px;resize:vertical;line-height:1.5}
+  label{display:block;font-size:12px;color:var(--muted);margin:14px 0 6px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+  .card h3{font-size:14px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:8px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .row>.grow{flex:1;min-width:200px}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:18px;flex-wrap:wrap}
+  .tabs button{border:none;border-radius:0;border-bottom:2px solid transparent;background:none;padding:10px 14px;font-size:14px;color:var(--muted)}
+  .tabs button.active{color:var(--text);border-bottom-color:var(--accent)}
+  .langs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}
+  .langs button{padding:6px 12px;font-size:12px;border-radius:20px}
+  .langs button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .searchbar{margin-bottom:12px}
+  .groups{margin-top:6px}
+  .group{margin-bottom:14px}
+  .group summary{cursor:pointer;font-size:13px;font-weight:700;color:var(--accent2);padding:8px 0;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  .group summary .cnt{color:var(--muted);font-weight:400;font-size:11px}
+  .field{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .field .k{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;margin-bottom:6px;word-break:break-all}
+  .field textarea{font-size:13px}
+  .statgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
+  .stat .v{font-size:22px;font-weight:700}
+  .stat .l{font-size:11px;color:var(--muted);margin-top:2px}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;white-space:nowrap}
+  tr.row-sent td{color:var(--text)}
+  .bodyprev{display:none;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;line-height:1.6;color:#cfd6e4;margin-top:6px;white-space:pre-wrap;word-break:break-word;max-height:280px;overflow:auto}
+  .toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none}
+  .toggle input{display:none}
+  .toggle .track{width:40px;height:22px;border-radius:20px;background:var(--line);position:relative;transition:.15s}
+  .toggle .track::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s}
+  .toggle input:checked + .track{background:var(--green)}
+  .toggle input:checked + .track::after{left:21px}
+  .toast{position:fixed;top:18px;right:18px;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--green);border-radius:10px;padding:12px 18px;font-size:13px;z-index:99;max-width:380px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+  .toast.err{border-left-color:var(--red)}
+  .toast.warn{border-left-color:var(--accent2)}
+  .loginbox{max-width:400px;margin:9vh auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:34px 30px}
+  .loginbox .logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px}
+  .loginbox h2{text-align:center;font-size:18px;margin-bottom:20px}
+  .loginbox button{width:100%;margin-top:16px;padding:11px}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;background:var(--panel2);border:1px solid var(--line)}
+  .badge.on{background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)}
+  .badge.off{background:rgba(239,68,68,.12);border-color:var(--red);color:var(--red)}
+  a{color:var(--accent2)}
+  .empty{color:var(--muted);font-size:13px;padding:20px;text-align:center}
+  .loadbar{height:3px;background:var(--accent);width:0;border-radius:2px;transition:width .4s}
+  /* 自訂確認彈窗 */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:100}
+  .modal-bg.open{display:flex}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;max-width:420px;width:90%;box-shadow:0 16px 40px rgba(0,0,0,.5)}
+  .modal-box .mt{font-size:15px;font-weight:700;margin-bottom:10px}
+  .modal-box .mm{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+  .modal-box .mbtns{display:flex;gap:10px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div id="toastroot"></div>
+<div class="modal-bg" id="modalBg">
+  <div class="modal-box">
+    <div class="mt" id="modalTitle">確認</div>
+    <div class="mm" id="modalMsg"></div>
+    <div class="mbtns">
+      <button id="modalCancel">取消</button>
+      <button class="primary" id="modalOk">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 登入畫面 -->
+<div id="loginView" class="wrap" style="display:none">
+  <div class="loginbox">
+    <div class="logo">🛠️</div>
+    <h2>GenesisPlus 管理後台</h2>
+    <label>登入電郵</label>
+    <input type="email" id="loginEmail" value="prefumeshop@gmail.com" autocomplete="email">
+    <label>密碼</label>
+    <input type="password" id="loginPwd" autocomplete="current-password">
+    <button id="loginBtn" class="primary">登入</button>
+    <p class="hint">首次登入使用臨時密碼，登入後請到「帳戶」頁更改密碼。</p>
+  </div>
+</div>
+
+<!-- 主後台 -->
+<div id="appView" class="wrap" style="display:none">
+  <header class="top">
+    <div class="logo">🛠️</div>
+    <h1>GenesisPlus 管理後台</h1>
+    <span class="user" id="whoami"></span>
+    <button id="logoutBtn" class="ghost">登出</button>
+  </header>
+  <div class="loadbar" id="loadbar"></div>
+
+  <div class="tabs">
+    <button data-tab="content" class="active">網站內容</button>
+    <button data-tab="email">郵件設置</button>
+    <button data-tab="data">發送數據</button>
+    <button data-tab="account">帳戶</button>
+  </div>
+
+  <!-- 內容 -->
+  <section id="tab-content">
+    <div class="card">
+      <h3>🌐 網站內容（8 語系）</h3>
+      <p class="hint">修改後按「儲存此語系」即時上線（網站會自動拉取覆寫值；未修改的欄位繼續用網站內建預設）。</p>
+      <div class="langs" id="langPills"></div>
+      <input type="text" class="searchbar" id="keySearch" placeholder="搜尋欄位…（例如 hero、faq、footer）">
+      <div class="row">
+        <button class="primary" id="saveContentBtn">💾 儲存此語系</button>
+        <button class="danger" id="resetContentBtn">重設此語系為網站預設</button>
+        <span class="hint" id="contentStatus" style="align-self:center"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="groups" id="contentGroups"></div>
+    </div>
+  </section>
+
+  <!-- 郵件 -->
+  <section id="tab-email" style="display:none">
+    <div class="card">
+      <h3>📧 郵件設置</h3>
+      <p class="hint" id="effNote">這些設定即時生效於自動發信管線（每日上限、閘門開關等）。儲存後約 1 分鐘內生效。</p>
+      <div class="row">
+        <div class="grow"><label>發件人名稱（From Name）</label><input type="text" id="st_from_name"></div>
+        <div class="grow"><label>發件人信箱（From Email）</label><input type="text" id="st_from_email"></div>
+      </div>
+      <div class="row">
+        <div class="grow"><label>回復信箱（Reply To）</label><input type="text" id="st_reply_to"></div>
+        <div class="grow"><label>公司署名（顯示於頁尾）</label><input type="text" id="st_company" value="GenesisPlus Packaging (HK) Company"></div>
+      </div>
+      <div class="row">
+        <div class="grow"><label>每日上限（封）</label><input type="number" id="st_daily_cap" min="1" max="500"></div>
+        <div class="grow"><label>每輪上限（封）</label><input type="number" id="st_per_run_cap" min="1" max="50"></div>
+        <div class="grow"><label>發送間隔（毫秒）</label><input type="number" id="st_pacing" min="500" max="60000"></div>
+        <div class="grow"><label>每輪分析數</label><input type="number" id="st_max_analyze" min="1" max="20"></div>
+      </div>
+      <div class="row" style="margin-top:16px;align-items:center">
+        <label class="toggle" style="margin:0"><input type="checkbox" id="st_outreach"><span class="track"></span><span id="st_outreach_label">發送閘門：關閉（不實際發信）</span></label>
+      </div>
+      <div style="margin-top:16px" class="row">
+        <button class="primary" id="saveEmailBtn">💾 儲存郵件設置</button>
+        <button id="reloadEffBtn">↻ 查看目前生效設置</button>
+      </div>
+      <div id="effectiveView" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <h3>🔑 Worker 管理權杖（用於數據/測試功能）</h3>
+      <p class="hint">此權杖只儲存在你這部電腦的瀏覽器本機，不會上傳；用於存取 worker 的統計、報告與測試發信。</p>
+      <div class="row">
+        <div class="grow"><input type="password" id="workerToken" placeholder="貼上 ADMIN_TOKEN"></div>
+        <button id="saveTokenBtn">儲存</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🧪 測試發信</h3>
+      <div class="row">
+        <div class="grow"><input type="email" id="testTo" placeholder="測試收件人電郵"></div>
+        <button class="primary" id="testEmailBtn">發送測試信</button>
+      </div>
+      <p class="hint">會以目前的發件人署名與樣式寄一封真實測試信到指定信箱，確認外觀與送達率。</p>
+    </div>
+  </section>
+
+  <!-- 數據 -->
+  <section id="tab-data" style="display:none">
+    <div class="card">
+      <h3>📊 發送統計</h3>
+      <div class="row" style="margin-bottom:14px">
+        <button class="primary" id="refreshDataBtn">↻ 重新整理</button>
+      </div>
+      <div class="statgrid" id="statGrid"></div>
+    </div>
+    <div class="card">
+      <h3>✉️ 已發送郵件</h3>
+      <p class="hint">點「查看全文」可看到寄給客戶的郵件完整內容。</p>
+      <div style="overflow-x:auto"><table id="sentTable"><thead><tr><th>時間</th><th>收件人</th><th>主旨</th><th>公司</th><th>全文</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>🚫 抑制清單（永不發送）</h3>
+      <div class="row" style="margin-bottom:12px">
+        <div class="grow"><input type="text" id="suppressInput" placeholder="電郵或網域，例如 abc@example.com 或 example.com"></div>
+        <button class="primary" id="addSuppressBtn">加入</button>
+      </div>
+      <div id="suppressList"></div>
+    </div>
+  </section>
+
+  <!-- 帳戶 -->
+  <section id="tab-account" style="display:none">
+    <div class="card">
+      <h3>🔒 更改密碼</h3>
+      <label>新密碼（至少 8 字元）</label>
+      <input type="password" id="newPwd1" autocomplete="new-password">
+      <label>再輸入一次</label>
+      <input type="password" id="newPwd2" autocomplete="new-password">
+      <div style="margin-top:14px"><button class="primary" id="changePwdBtn">更改密碼</button></div>
+    </div>
+  </section>
+</div>
+
+<script src="admin_defaults.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

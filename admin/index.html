@@ -92,6 +92,22 @@
   .pill.ok{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
   .pill.err{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
   .pill.off{background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.3)}
+  .pill.blue{background:rgba(96,165,250,.15);color:#93c5fd;border:1px solid rgba(96,165,250,.35)}
+  .pill.amber{background:rgba(251,191,36,.12);color:#fcd34d;border:1px solid rgba(251,191,36,.3)}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .kpi b{display:block;font-size:22px;line-height:1.2}
+  .kpi span{font-size:11px;color:var(--muted)}
+  .kpi.green b{color:#4ade80}.kpi.blue b{color:#60a5fa}.kpi.amber b{color:#fbbf24}.kpi.red b{color:#f87171}.kpi.gray b{color:#9ca3af}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .tbl th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--muted);font-weight:600;white-space:nowrap}
+  .tbl td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:hover td{background:rgba(255,255,255,.03)}
+  .tbl .btn{font-size:11px;padding:3px 9px;border-radius:6px;margin:2px 4px 2px 0}
+  .tbl .btn.snd{background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4);color:#93c5fd}
+  .tbl .btn.rep{background:rgba(45,212,191,.12);border-color:rgba(45,212,191,.35);color:#5eead4}
+  .tbl .btn.sup{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.35);color:#fca5a5}
+  .tbl .btn.unsup{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.3);color:#fcd34d}
   .jobrow td{font-size:12px}
   .jobrow .ops button{margin-right:6px;font-size:12px;padding:3px 8px;border-radius:6px}
   .ajres{background:#0d1016;border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-all}
@@ -140,6 +156,7 @@
     <button data-tab="content" class="active">網站內容</button>
     <button data-tab="email">郵件設置</button>
     <button data-tab="data">發送數據</button>
+    <button data-tab="leads">🎯 客戶</button>
     <button data-tab="ai">🤖 AI 助手</button>
     <button data-tab="aiJobs">⏰ AI 自動任務</button>
     <button data-tab="account">帳戶</button>
@@ -248,6 +265,53 @@
         <button class="primary" id="addSuppressBtn">加入</button>
       </div>
       <div id="suppressList"></div>
+    </div>
+  </section>
+
+  <!-- 客戶庫 -->
+  <section id="tab-leads" style="display:none">
+    <div class="card">
+      <h3>🎯 AI 客戶庫（自動搜尋＋發送追蹤）</h3>
+      <p class="hint">每次自動任務搜尋到並分析完嘅公司都會入庫。狀態由系統自動流轉（新候選 → 已發送 → 已回覆/退信/投訴），退信同投訴會自動加入抑制清單。需要 Worker 權杖（見「郵件設置」分頁）。</p>
+      <div class="kpis" id="leadKpis"></div>
+      <div class="row" style="margin-bottom:12px">
+        <div style="min-width:150px"><label>狀態</label><select id="ldStatus">
+          <option value="">全部狀態</option>
+          <option value="new">新候選</option>
+          <option value="qualified">待發送</option>
+          <option value="sent">已發送</option>
+          <option value="replied">已回覆</option>
+          <option value="bounced">退信</option>
+          <option value="complained">投訴</option>
+          <option value="unsubscribed">退訂</option>
+          <option value="suppressed">抑制</option>
+        </select></div>
+        <div class="grow"><label>行業（例：skincare）</label><input type="text" id="ldIndustry" placeholder="行業關鍵字…"></div>
+        <div class="grow"><label>搜尋</label><input type="text" id="ldQ" placeholder="🔍 公司名 / 網域…"></div>
+        <div style="align-self:flex-end"><button class="primary" id="ldLoadBtn">🔍 篩選</button> <button id="ldRefreshBtn">↻ 重新整理</button></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="ldTable"><thead><tr>
+          <th>公司</th><th>行業</th><th>國家</th><th>電郵</th><th>評分</th><th>狀態</th><th>最近更新</th><th>操作</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <p class="hint" id="ldMeta"></p>
+    </div>
+    <div class="card">
+      <h3>⚙️ 找客戶搜索設置</h3>
+      <p class="hint">留空＝用內建預設（護膚/美妝/咖啡/食品/保健品/香氛/珠寶 等全球品牌）。儲存後約 2 分鐘內生效於下一次自動任務。</p>
+      <div class="row">
+        <div class="grow"><label>目標行業（逗號分隔，例：skincare, coffee, jewelry）</label><input type="text" id="ls_industries" placeholder="留空用預設"></div>
+        <div class="grow"><label>目標國家（逗號分隔，例：UK, Japan, France）</label><input type="text" id="ls_countries" placeholder="留空不限"></div>
+      </div>
+      <div class="row">
+        <div class="grow"><label>自訂關鍵詞（逗號分隔）</label><input type="text" id="ls_keywords" placeholder="例：sustainable skincare, artisanal coffee roaster"></div>
+        <div style="min-width:200px"><label>每輪查詢數（1-10）</label><input type="number" id="ls_queries" min="1" max="10" value="4"></div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="primary" id="lsSaveBtn">💾 儲存搜索設置</button>
+        <span class="hint" style="align-self:center" id="lsStatus"></span>
+      </div>
     </div>
   </section>
 

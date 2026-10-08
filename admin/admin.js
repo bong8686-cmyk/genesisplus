@@ -169,10 +169,11 @@
   }
   function switchTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["content", "email", "data", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
+    ["content", "email", "data", "leads", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
     if (tab === "data") loadData();
     if (tab === "email") loadEmailForm();
     if (tab === "aiJobs") ajLoad();
+    if (tab === "leads") { ldLoad(); lsLoad(); }
   }
 
   // ---- 內容分組 ----
@@ -915,6 +916,123 @@
     ta.focus();
   }
 
+  // ---- 🎯 客戶庫 ----
+  const LEAD_STATUS_LABEL = { new: "新候選", qualified: "待發送", sent: "已發送", replied: "已回覆", bounced: "退信", complained: "投訴", unsubscribed: "退訂", suppressed: "抑制" };
+  const ldPillClass = (s) => ({ new: "off", qualified: "blue", sent: "ok", replied: "ok", bounced: "err", complained: "err", unsubscribed: "amber", suppressed: "off" }[s] || "off");
+
+  async function ldLoad() {
+    busy(true);
+    try {
+      const status = $("ldStatus").value || null;
+      const industry = $("ldIndustry").value.trim() || null;
+      const q = $("ldQ").value.trim() || null;
+      const params = [];
+      if (status) params.push(`status=${encodeURIComponent(status)}`);
+      if (industry) params.push(`industry=${encodeURIComponent(industry)}`);
+      if (q) params.push(`q=${encodeURIComponent(q)}`);
+      const data = await worker.call("/leads" + (params.length ? "?" + params.join("&") : ""));
+      renderLeadKpis(data.counts || {});
+      renderLeadTable(data.items || []);
+      $("ldMeta").textContent = `共 ${data.total || 0} 個客戶 · 顯示 ${(data.items || []).length} 筆` + (status ? `（狀態：${LEAD_STATUS_LABEL[status] || status}）` : "");
+    } catch (err) {
+      toast(err.message, "err");
+    } finally { busy(false); }
+  }
+
+  function renderLeadKpis(c) {
+    const cards = [
+      { cls: "gray", label: "客戶總數", v: c.total || 0 },
+      { cls: "blue", label: "待發送", v: c.qualified || 0 },
+      { cls: "green", label: "已發送", v: c.sent || 0 },
+      { cls: "green", label: "已回覆", v: c.replied || 0 },
+      { cls: "red", label: "退信＋投訴", v: (c.bounced || 0) + (c.complained || 0) },
+      { cls: "amber", label: "退訂＋抑制", v: (c.unsubscribed || 0) + (c.suppressed || 0) },
+    ];
+    $("leadKpis").innerHTML = cards.map((k) => `<div class="kpi ${k.cls}"><b>${k.v}</b><span>${k.label}</span></div>`).join("");
+  }
+
+  function renderLeadTable(items) {
+    const tb = $("ldTable").querySelector("tbody");
+    if (!items.length) {
+      tb.innerHTML = '<tr><td colspan="8" style="color:var(--muted)">未有客戶記錄——等下一次自動任務搜尋，或喺「郵件設置」確認發送閘門已開啟。</td></tr>';
+      return;
+    }
+    tb.innerHTML = items.map((l) => {
+      const emails = (l.emails || []).join(", ");
+      const last = (l.last_status_at || l.updated_at || "").slice(0, 16).replace("T", " ");
+      const canSend = ["new", "qualified", "replied"].includes(l.status);
+      const blocked = ["suppressed", "unsubscribed", "bounced", "complained"].includes(l.status);
+      return `<tr>
+        <td><strong>${esc(l.title || l.domain)}</strong><br><span style="color:var(--muted);font-size:11px">${esc(l.domain)}</span></td>
+        <td>${esc(l.industry || "—")}</td>
+        <td>${esc(l.country || "—")}</td>
+        <td style="word-break:break-all">${esc(emails) || "—"}</td>
+        <td>${l.score != null ? l.score + "/10" : "—"}</td>
+        <td><span class="pill ${ldPillClass(l.status)}">${LEAD_STATUS_LABEL[l.status] || esc(l.status)}</span></td>
+        <td style="white-space:nowrap">${last}</td>
+        <td style="white-space:nowrap">
+          ${canSend ? `<button class="btn snd" data-act="send" data-id="${l.id}">📧 發送</button>` : ""}
+          <button class="btn rep" data-act="replied" data-id="${l.id}">✉️ 已回覆</button>
+          ${blocked
+            ? `<button class="btn unsup" data-act="unsuppress" data-id="${l.id}">↩ 解除抑制</button>`
+            : `<button class="btn sup" data-act="suppress" data-id="${l.id}">🚫 抑制</button>`}
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  async function ldAction(e) {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const act = btn.dataset.act;
+    try {
+      if (act === "send") {
+        if (!(await gpConfirm("確定向呢個客戶發送一封開發信？會計入每日上限（防垃圾保護）。", "手動發送"))) return;
+        busy(true);
+        const r = await worker.call("/leads/send", { method: "POST", body: JSON.stringify({ id }) });
+        toast(`已發送 → ${r.to}`);
+      } else if (act === "replied") {
+        await worker.call("/leads", { method: "PATCH", body: JSON.stringify({ id, status: "replied" }) });
+        toast("已標記為已回覆");
+      } else if (act === "suppress") {
+        if (!(await gpConfirm("加入抑制清單後永不自動發送，確定？", "抑制客戶"))) return;
+        await worker.call("/leads", { method: "PATCH", body: JSON.stringify({ id, status: "suppressed" }) });
+        toast("已加入抑制清單");
+      } else if (act === "unsuppress") {
+        await worker.call("/leads", { method: "PATCH", body: JSON.stringify({ id, status: "qualified" }) });
+        toast("已解除抑制（狀態→待發送）");
+      }
+      ldLoad();
+    } catch (err) { toast(err.message, "err"); }
+  }
+
+  async function lsLoad() {
+    try {
+      const rows = await supabase.dbFetch("lead_settings", "select=settings&id=eq.1&limit=1");
+      const s = rows && rows[0] && rows[0].settings ? rows[0].settings : {};
+      $("ls_industries").value = (s.industries || []).join(", ");
+      $("ls_countries").value = (s.countries || []).join(", ");
+      $("ls_keywords").value = (s.keywords || []).join(", ");
+      $("ls_queries").value = s.queries_per_run || 4;
+    } catch (e) { $("lsStatus").textContent = "讀取失敗：" + e.message; }
+  }
+
+  async function lsSave() {
+    const split = (v) => v.split(",").map((x) => x.trim()).filter(Boolean);
+    const settings = {
+      industries: split($("ls_industries").value),
+      countries: split($("ls_countries").value),
+      keywords: split($("ls_keywords").value),
+      queries_per_run: Math.min(10, Math.max(1, Number($("ls_queries").value) || 4)),
+    };
+    try {
+      await supabase.dbUpsert("lead_settings", [{ id: 1, settings }]);
+      $("lsStatus").textContent = "✅ 已儲存，約 2 分鐘內生效於下次自動任務";
+      setTimeout(() => ($("lsStatus").textContent = ""), 5000);
+    } catch (e) { $("lsStatus").textContent = "儲存失敗：" + e.message; }
+  }
+
   // ---- 初始化 ----
   function init() {
     supabase._load();
@@ -984,6 +1102,13 @@
       const d = e.data || {};
       if (d.type === "gp-picked") pvPick(d.key);
     });
+
+    // 🎯 客戶庫
+    $("ldLoadBtn").addEventListener("click", ldLoad);
+    $("ldRefreshBtn").addEventListener("click", ldLoad);
+    $("ldStatus").addEventListener("change", ldLoad);
+    $("ldTable").addEventListener("click", ldAction);
+    $("lsSaveBtn").addEventListener("click", lsSave);
 
     if (supabase.session) {
       supabase._ensureToken().then(() => {

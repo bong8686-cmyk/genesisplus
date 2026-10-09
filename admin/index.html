@@ -156,6 +156,7 @@
     <button data-tab="content" class="active">網站內容</button>
     <button data-tab="email">郵件設置</button>
     <button data-tab="data">發送數據</button>
+    <button data-tab="emails">📮 郵件</button>
     <button data-tab="leads">🎯 客戶</button>
     <button data-tab="ai">🤖 AI 助手</button>
     <button data-tab="aiJobs">⏰ AI 自動任務</button>
@@ -314,6 +315,46 @@
       </div>
     </div>
   </section>
+
+  <!-- 郵件記錄 -->
+  <section id="tab-emails" style="display:none">
+    <div class="card">
+      <h3>📮 郵件發送記錄</h3>
+      <p class="hint">每封已發送郵件嘅主旨、收件人、內容同狀態。狀態由 Resend webhook 自動更新：已發送 → 已送達 → 已開啟 → 已點擊；退信／投訴會自動加入抑制清單。</p>
+      <div class="kpis" id="emKpis"></div>
+      <div class="row" style="margin-bottom:12px">
+        <div style="min-width:150px"><label>狀態</label><select id="emStatus">
+          <option value="">全部狀態</option>
+          <option value="sent">已發送</option>
+          <option value="delivered">已送達</option>
+          <option value="opened">已開啟</option>
+          <option value="clicked">已點擊</option>
+          <option value="bounced">退信</option>
+          <option value="complained">投訴</option>
+        </select></div>
+        <div class="grow"><label>搜尋</label><input type="text" id="emQ" placeholder="🔍 收件人 / 主旨…"></div>
+        <div style="align-self:flex-end"><button class="primary" id="emLoadBtn">🔍 篩選</button> <button id="emRefreshBtn">↻ 重新整理</button></div>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="emTable"><thead><tr>
+          <th>發送時間</th><th>收件人</th><th>主旨</th><th>狀態</th><th>操作</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <p class="hint" id="emMeta"></p>
+    </div>
+  </section>
+
+  <!-- 郵件內容彈窗 -->
+  <div id="emModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center">
+    <div style="background:#fff;color:#1f2937;border-radius:12px;max-width:640px;width:90%;max-height:84vh;overflow:auto;padding:20px">
+      <div class="row" style="margin-bottom:12px">
+        <b style="flex:1" id="emModalSubject"></b>
+        <button id="emModalClose" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">✕</button>
+      </div>
+      <p class="hint" id="emModalMeta"></p>
+      <div id="emModalBody" style="border:1px solid #eee;border-radius:8px;padding:16px;background:#fafafa"></div>
+    </div>
+  </div>
 
   <!-- AI 助手 -->
   <section id="tab-ai" style="display:none">

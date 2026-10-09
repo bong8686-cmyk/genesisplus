@@ -169,9 +169,10 @@
   }
   function switchTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["content", "email", "data", "leads", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
+    ["content", "email", "data", "emails", "leads", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
     if (tab === "data") loadData();
     if (tab === "email") loadEmailForm();
+    if (tab === "emails") emLoad();
     if (tab === "aiJobs") ajLoad();
     if (tab === "leads") { ldLoad(); lsLoad(); }
   }
@@ -1033,6 +1034,72 @@
     } catch (e) { $("lsStatus").textContent = "儲存失敗：" + e.message; }
   }
 
+  // ---- 📮 郵件記錄 ----
+  const EM_STATUS_LABEL = { sent: "已發送", delivered: "已送達", opened: "已開啟", clicked: "已點擊", bounced: "退信", complained: "投訴" };
+  const emPillClass = (s) => ({ sent: "blue", delivered: "ok", opened: "ok", clicked: "ok", bounced: "err", complained: "err" }[s] || "off");
+
+  async function emLoad() {
+    busy(true);
+    try {
+      const status = $("emStatus").value || null;
+      const q = $("emQ").value.trim() || null;
+      const params = [];
+      if (status) params.push(`status=${encodeURIComponent(status)}`);
+      if (q) params.push(`q=${encodeURIComponent(q)}`);
+      const data = await worker.call("/email-logs" + (params.length ? "?" + params.join("&") : ""));
+      window.__emItems = data.items || [];
+      const counts = data.counts || {};
+      const total = data.total || 0;
+      $("emKpis").innerHTML = [
+        { cls: "gray", label: "記錄總數", v: total },
+        { cls: "ok", label: "已發送/送達", v: (counts.sent || 0) + (counts.delivered || 0) + (counts.opened || 0) },
+        { cls: "green", label: "已點擊", v: counts.clicked || 0 },
+        { cls: "red", label: "退信＋投訴", v: (counts.bounced || 0) + (counts.complained || 0) },
+      ].map((k) => `<div class="kpi ${k.cls}"><b>${k.v}</b><span>${k.label}</span></div>`).join("");
+      renderEmailTable(window.__emItems);
+      $("emMeta").textContent = `共 ${total} 封郵件記錄 · 顯示 ${(data.items || []).length} 筆`;
+    } catch (err) {
+      toast(err.message, "err");
+    } finally { busy(false); }
+  }
+
+  function renderEmailTable(items) {
+    const tb = $("emTable").querySelector("tbody");
+    if (!items.length) {
+      tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">未有郵件記錄。</td></tr>';
+      return;
+    }
+    tb.innerHTML = items.map((l, i) => `<tr>
+      <td>${esc((l.sentAt || "").replace("T", " ").slice(0, 16))}</td>
+      <td>${esc(l.to || "")}</td>
+      <td>${esc(l.subject || "")}</td>
+      <td><span class="pill ${emPillClass(l.status)}">${EM_STATUS_LABEL[l.status] || esc(l.status)}</span></td>
+      <td><button data-act="view" data-idx="${i}">👁 查看內容</button></td>
+    </tr>`).join("");
+  }
+
+  function emShowModal(l) {
+    $("emModalSubject").textContent = l.subject || "";
+    $("emModalMeta").innerHTML = `收件人：${esc(l.to || "")} · ${esc((l.sentAt || "").replace("T", " ").slice(0, 19))} · 狀態：${EM_STATUS_LABEL[l.status] || esc(l.status)}${l.domain ? " · " + esc(l.domain) : ""}`;
+    const body = l.body || "";
+    if (body) {
+      $("emModalBody").innerHTML = body;
+    } else {
+      $("emModalBody").textContent = "（呢封郵件早於「郵件記錄」功能，內容未有留存——之後新發嘅郵件會自動保存內容。）";
+    }
+    $("emModal").style.display = "flex";
+  }
+
+  function emCloseModal() { $("emModal").style.display = "none"; }
+
+  function emTableClick(e) {
+    const btn = e.target.closest("button[data-act]");
+    if (!btn) return;
+    const idx = Number(btn.dataset.idx);
+    const it = window.__emItems && window.__emItems[idx];
+    if (it) emShowModal(it);
+  }
+
   // ---- 初始化 ----
   function init() {
     supabase._load();
@@ -1109,6 +1176,14 @@
     $("ldStatus").addEventListener("change", ldLoad);
     $("ldTable").addEventListener("click", ldAction);
     $("lsSaveBtn").addEventListener("click", lsSave);
+
+    // 📮 郵件記錄
+    $("emLoadBtn").addEventListener("click", emLoad);
+    $("emRefreshBtn").addEventListener("click", emLoad);
+    $("emStatus").addEventListener("change", emLoad);
+    $("emTable").addEventListener("click", emTableClick);
+    $("emModalClose").addEventListener("click", emCloseModal);
+    $("emModal").addEventListener("click", (e) => { if (e.target === $("emModal")) emCloseModal(); });
 
     if (supabase.session) {
       supabase._ensureToken().then(() => {

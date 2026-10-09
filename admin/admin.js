@@ -1074,7 +1074,7 @@
       <td>${esc(l.to || "")}</td>
       <td>${esc(l.subject || "")}</td>
       <td><span class="pill ${emPillClass(l.status)}">${EM_STATUS_LABEL[l.status] || esc(l.status)}</span></td>
-      <td><button data-act="view" data-idx="${i}">👁 查看內容</button></td>
+      <td><button data-act="view" data-idx="${i}">👁 查看內容</button>${l.leadId ? `<button data-act="replied" data-idx="${i}">✉️ 已回覆</button>` : ""}</td>
     </tr>`).join("");
   }
 
@@ -1097,7 +1097,22 @@
     if (!btn) return;
     const idx = Number(btn.dataset.idx);
     const it = window.__emItems && window.__emItems[idx];
+    if (btn.dataset.act === "replied") {
+      emMarkReplied(it);
+      return;
+    }
     if (it) emShowModal(it);
+  }
+
+  async function emMarkReplied(l) {
+    if (!l || !l.leadId) return;
+    try {
+      await worker.call("/leads", { method: "PATCH", body: JSON.stringify({ id: l.leadId, status: "replied" }) });
+      toast("已標記為「已回覆」✅");
+      emLoad();
+    } catch (err) {
+      toast(err.message, "err");
+    }
   }
 
   // ---- 初始化 ----

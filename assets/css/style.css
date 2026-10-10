@@ -216,7 +216,7 @@ html[lang="ja"] .hero-title{word-break:keep-all;overflow-wrap:normal}
 /* ===== 回到頂部按鈕（v20261010c）：包裝盒＋上升箭頭 ===== */
 .back-to-top{position:fixed;left:20px;bottom:20px;z-index:950;width:52px;height:52px;border:1px solid rgba(232,134,46,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,rgba(22,32,58,.94),rgba(8,14,30,.97));border-radius:50%;color:var(--accent);box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 1px rgba(232,134,46,.14);opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .3s ease,transform .3s ease,visibility .3s,box-shadow .3s ease,color .3s ease,background .3s ease}
 .back-to-top svg{width:25px;height:25px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;transition:transform .35s cubic-bezier(.2,.8,.3,1),color .3s ease}
-.back-to-top svg .btt-up{opacity:.5;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.8,.3,1);transform-box:fill-box;transform-origin:center}
+.back-to-top svg .btt-up{opacity:.9;transition:opacity .3s ease,transform .35s cubic-bezier(.2,.8,.3,1);transform-box:fill-box;transform-origin:center}
 .back-to-top.show{opacity:1;visibility:visible;transform:translateY(0)}
 .back-to-top:hover{color:#ffcf92;background:linear-gradient(145deg,rgba(232,134,46,.35),rgba(20,30,52,.98));box-shadow:0 14px 38px rgba(0,0,0,.5),0 0 26px rgba(232,134,46,.4);border-color:var(--accent)}
 .back-to-top:hover svg{transform:translateY(-2px)}

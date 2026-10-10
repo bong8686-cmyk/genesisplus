@@ -212,3 +212,11 @@ html[lang="ja"] .hero-title{word-break:keep-all;overflow-wrap:normal}
 .section-description,.hero-subtitle{letter-spacing:.01em}
 /* reduced-motion：動畫全關（含 hero grid/glow/cube/particles） */
 @media(prefers-reduced-motion:reduce){.hero::before,.hero-glow-1,.hero-glow-2,.cube-wrapper,.cube-inner-glow,.floating-tag,.global-particle,#preloader-bar,#preloader-ring::before,#preloader-ring::after,.hero-badge::before{animation:none!important}.hero::before{background-image:none}.cube-wrapper{animation-duration:0s}}
+
+/* ===== 回到頂部按鈕（v20261010a）===== */
+.back-to-top{position:fixed;left:20px;bottom:20px;z-index:950;width:46px;height:46px;border-radius:14px;border:1px solid var(--border-color);background:var(--bg-secondary);color:var(--accent);font-size:19px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow-lg);opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .3s ease,transform .3s ease,visibility .3s,box-shadow var(--transition-fast),background-color var(--transition-fast),border-color var(--transition-fast),color var(--transition-fast)}
+.back-to-top.show{opacity:1;visibility:visible;transform:translateY(0)}
+.back-to-top:hover{color:var(--accent-hover);background:var(--bg-tertiary);box-shadow:var(--shadow-xl)}
+.back-to-top:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.back-to-top{transition:none}.back-to-top.show{transform:none}html{scroll-behavior:auto}}
+@media(max-width:820px){.back-to-top{left:14px;bottom:14px;width:42px;height:42px;font-size:17px}}

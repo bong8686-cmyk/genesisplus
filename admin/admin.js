@@ -317,6 +317,7 @@
     from_name: "Cyrus Chow",
     from_email: "hello@genesisplus.net",
     reply_to: "cyrus.chow@genesisplus.net",
+    bcc_to: "cyrus.chow@genesisplus.net",
     daily_cap: 20,
     per_run_cap: 5,
     send_pacing_ms: 3000,
@@ -333,6 +334,7 @@
       $("st_from_name").value = v.from_name || "";
       $("st_from_email").value = v.from_email || "";
       $("st_reply_to").value = v.reply_to || "";
+      $("st_bcc_to").value = v.bcc_to || "";
       $("st_daily_cap").value = v.daily_cap != null ? v.daily_cap : EMAIL_DEFAULTS.daily_cap;
       $("st_per_run_cap").value = v.per_run_cap != null ? v.per_run_cap : EMAIL_DEFAULTS.per_run_cap;
       $("st_pacing").value = v.send_pacing_ms != null ? v.send_pacing_ms : EMAIL_DEFAULTS.send_pacing_ms;
@@ -359,6 +361,7 @@
         from_name: $("st_from_name").value.trim(),
         from_email: $("st_from_email").value.trim(),
         reply_to: $("st_reply_to").value.trim(),
+        bcc_to: $("st_bcc_to").value.trim(),
         daily_cap: parseInt($("st_daily_cap").value, 10) || 20,
         per_run_cap: parseInt($("st_per_run_cap").value, 10) || 5,
         send_pacing_ms: parseInt($("st_pacing").value, 10) || 3000,
@@ -382,6 +385,7 @@
            <span class="badge">來源：${esc(s.source || "env")}</span><br>
            發件人：<b>${esc(s.from_name)}</b> &lt;${esc(s.from_email)}&gt;<br>
            回復信箱：${esc(s.reply_to)}<br>
+           BCC 監控：${esc(s.bcc_to || "—")}<br>
            每日上限：${s.daily_cap} 封 · 每輪上限：${s.per_run_cap} 封 · 間隔：${s.send_pacing_ms}ms · 分析數：${s.max_analyze}
          </div>`;
     } catch (e) { toast(e.message, "err"); }

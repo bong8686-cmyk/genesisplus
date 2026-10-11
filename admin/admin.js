@@ -116,12 +116,43 @@
   // ---- Worker API（需要 admin token）----
   const worker = {
     token() { return localStorage.getItem(TOKEN_KEY) || ""; },
+    // 從雲端自動取得管理權杖：登入後台即可用，多部電腦同步
+    async ensureToken() {
+      const local = this.token();
+      if (local) return local;
+      const session = supabase.session;
+      if (!session) throw new Error("請先登入後台");
+      const token = await supabase._ensureToken().catch(() => session.access_token);
+      const resp = await fetch(`${WORKER_URL}/admin-token`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.token) {
+        throw new Error(data.error || "從雲端取得權杖失敗，請在「郵件設置」手動貼上");
+      }
+      localStorage.setItem(TOKEN_KEY, data.token);
+      const el = $("workerToken");
+      if (el && !el.value) el.value = data.token;
+      return data.token;
+    },
     async call(path, opts = {}) {
-      const token = this.token();
-      if (!token) throw new Error("請先在上方填入 Worker 管理權杖");
+      let token;
+      try { token = await this.ensureToken(); } catch (e) {
+        throw e; // 明確提示：雲端同步或手動填寫
+      }
       const headers = { Authorization: `Bearer ${token}`, ...(opts.headers || {}) };
       if (opts.body) headers["Content-Type"] = "application/json";
-      const resp = await fetch(`${WORKER_URL}${path}`, { ...opts, headers });
+      let resp = await fetch(`${WORKER_URL}${path}`, { ...opts, headers });
+      if (resp.status === 401 && localStorage.getItem(TOKEN_KEY)) {
+        // 權杖已失效：清除本地暫存，重新從雲端取得後重試一次
+        localStorage.removeItem(TOKEN_KEY);
+        try {
+          token = await this.ensureToken();
+          headers.Authorization = `Bearer ${token}`;
+          resp = await fetch(`${WORKER_URL}${path}`, { ...opts, headers });
+        } catch (e) { /* 保持原 401 結果 */ }
+      }
       const text = await resp.text();
       let data = null;
       try { data = text ? JSON.parse(text) : null; } catch (e) { data = text; }
@@ -1188,7 +1219,22 @@
       localStorage.setItem(TOKEN_KEY, $("workerToken").value.trim());
       toast("管理權杖已儲存到本機");
     });
+    $("fetchTokenCloudBtn").addEventListener("click", async () => {
+      try {
+        const token = await worker.ensureToken();
+        $("workerToken").value = token;
+        toast("已從雲端取得管理權杖");
+      } catch (e) {
+        toast(e.message, "err");
+      }
+    });
     $("workerToken").value = localStorage.getItem(TOKEN_KEY) || "";
+    // 登入後自動從雲端同步權杖（多部電腦共用同一份資料）
+    if (supabase.session && !localStorage.getItem(TOKEN_KEY)) {
+      worker.ensureToken().then((t) => {
+        $("workerToken").value = t;
+      }).catch(() => { /* 無權限或未登入時靜默，稍後手動填 */ });
+    }
     $("st_outreach").addEventListener("change", updateOutreachLabel);
     $("refreshDataBtn").addEventListener("click", loadData);
     $("addSuppressBtn").addEventListener("click", addSuppress);

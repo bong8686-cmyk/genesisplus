@@ -233,9 +233,10 @@
     </div>
     <div class="card">
       <h3>🔑 Worker 管理權杖（用於數據/測試功能）</h3>
-      <p class="hint">此權杖只儲存在你這部電腦的瀏覽器本機，不會上傳；用於存取 worker 的統計、報告與測試發信。</p>
+      <p class="hint">登入後台即自動從雲端取得，多部電腦同步（以你的登入身份驗證）。失效時可按「☁️ 從雲端取得」重新同步；如需用其他權杖可手動貼上後儲存。</p>
       <div class="row">
-        <div class="grow"><input type="password" id="workerToken" placeholder="貼上 ADMIN_TOKEN"></div>
+        <div class="grow"><input type="password" id="workerToken" placeholder="貼上 ADMIN_TOKEN 或按雲端取得"></div>
+        <button id="fetchTokenCloudBtn" title="用目前登入身份從雲端取得權杖">☁️ 從雲端取得</button>
         <button id="saveTokenBtn">儲存</button>
       </div>
     </div>

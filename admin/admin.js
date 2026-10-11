@@ -407,7 +407,14 @@
   async function loadData() {
     busy(true);
     try {
-      const [stats, report] = await Promise.all([worker.call("/stats"), worker.call("/report")]);
+      let stats = {}, report = {};
+      try {
+        [stats, report] = await Promise.all([worker.call("/stats"), worker.call("/report")]);
+      } catch (e) {
+        // Worker 權杖失效/未填：唔好令成個頁面空白，用 Supabase 直讀數據繼續顯示
+        toast("Worker 權杖失效或未填：發送功能暫停，請喺「設定」填返正確權杖；以下顯示仍以資料庫為準", "warn");
+        stats = {}; report = {};
+      }
       $("statGrid").innerHTML = [
         ["已發送總數", stats.totalSent || 0],
         ["今日已發送", stats.sentToday || 0],
@@ -946,14 +953,40 @@
       const status = $("ldStatus").value || null;
       const industry = $("ldIndustry").value.trim() || null;
       const q = $("ldQ").value.trim() || null;
-      const params = [];
-      if (status) params.push(`status=${encodeURIComponent(status)}`);
-      if (industry) params.push(`industry=${encodeURIComponent(industry)}`);
-      if (q) params.push(`q=${encodeURIComponent(q)}`);
-      const data = await worker.call("/leads" + (params.length ? "?" + params.join("&") : ""));
-      renderLeadKpis(data.counts || {});
-      renderLeadTable(data.items || []);
-      $("ldMeta").textContent = `共 ${data.total || 0} 個客戶 · 顯示 ${(data.items || []).length} 筆` + (status ? `（狀態：${LEAD_STATUS_LABEL[status] || status}）` : "");
+      let items = [], total = 0, counts = {};
+      // 優先直讀 Supabase leads 表（登入後即可用，唔使 Worker 權杖），權杖失效都照睇
+      try {
+        let query = "select=*&order=updated_at.desc&limit=200";
+        if (status) query += `&status=eq.${encodeURIComponent(status)}`;
+        if (industry) query += `&industry=ilike.%25${encodeURIComponent(industry)}%25`;
+        if (q) query += `&or=(title.ilike.%25${encodeURIComponent(q)}%25,domain.ilike.%25${encodeURIComponent(q)}%25)`;
+        const rows = await supabase.dbFetch("leads", query);
+        items = Array.isArray(rows) ? rows : [];
+        total = items.length;
+        counts = {
+          total: items.length,
+          qualified: items.filter((x) => x.status === "qualified").length,
+          sent: items.filter((x) => x.status === "sent").length,
+          replied: items.filter((x) => x.status === "replied").length,
+          bounced: items.filter((x) => x.status === "bounced").length,
+          complained: items.filter((x) => x.status === "complained").length,
+          unsubscribed: items.filter((x) => x.status === "unsubscribed").length,
+          suppressed: items.filter((x) => x.status === "suppressed").length,
+        };
+      } catch (e) {
+        // 直讀失敗 → fallback 到 Worker /leads（需要權杖）
+        const params = [];
+        if (status) params.push(`status=${encodeURIComponent(status)}`);
+        if (industry) params.push(`industry=${encodeURIComponent(industry)}`);
+        if (q) params.push(`q=${encodeURIComponent(q)}`);
+        const data = await worker.call("/leads" + (params.length ? "?" + params.join("&") : ""));
+        items = data.items || [];
+        total = data.total || 0;
+        counts = data.counts || {};
+      }
+      renderLeadKpis(counts);
+      renderLeadTable(items);
+      $("ldMeta").textContent = `共 ${total} 個客戶 · 顯示 ${items.length} 筆` + (status ? `（狀態：${LEAD_STATUS_LABEL[status] || status}）` : "");
     } catch (err) {
       toast(err.message, "err");
     } finally { busy(false); }
@@ -1024,7 +1057,9 @@
         toast("已解除抑制（狀態→待發送）");
       }
       ldLoad();
-    } catch (err) { toast(err.message, "err"); }
+    } catch (err) {
+      toast(/Worker\s*\d{3}|權杖|401/.test(err.message) ? "Worker 權杖失效：請喺「設定」填返正確權杖後再試" : err.message, "err");
+    }
   }
 
   async function lsLoad() {

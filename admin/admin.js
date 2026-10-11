@@ -421,19 +421,34 @@
 
       const tb = $("sentTable").querySelector("tbody");
       tb.innerHTML = "";
-      if (!report.sentLeads || !report.sentLeads.length) {
-        tb.innerHTML = `<tr><td colspan="5" class="empty">尚未發送任何郵件</td></tr>`;
+      // 已發郵件完整記錄：優先讀 Supabase genesisplus.sent_emails（全文 + 客戶資料 + BCC），
+      // 表未建/未登入時 fallback 到 worker /report 的 KV sentLeads（最多 50 條）
+      let sentRows = null;
+      try {
+        const rows = await supabase.dbFetch("sent_emails", "select=*&order=sent_at.desc&limit=100");
+        if (Array.isArray(rows) && rows.length) sentRows = rows;
+      } catch (e) { /* 表未建或無權限 → 用 KV fallback */ }
+      const rows = sentRows || report.sentLeads || [];
+      if (!rows.length) {
+        tb.innerHTML = `<tr><td colspan="6" class="empty">尚未發送任何郵件</td></tr>`;
       } else {
-        report.sentLeads.forEach((s) => {
+        rows.forEach((s) => {
           const tr = document.createElement("tr");
           const body = s.body || "";
+          const time = s.sent_at || s.sentAt || s.date || "";
+          const to = s.to_email || (s.emails && s.emails[0]) || "";
+          const co = s.company || s.title || s.domain || "";
+          const bcc = s.bcc_to || "";
+          const st = s.status || "sent";
+          const stBadge = `<span class="badge" style="background:${st === "replied" ? "#16a34a" : st === "bounced" ? "#dc2626" : st === "complained" ? "#b45309" : st === "unsubscribed" ? "#9333ea" : "#6b7280"};color:#fff">${esc(st)}</span>`;
           tr.innerHTML = `
-            <td style="white-space:nowrap">${esc((s.sentAt || s.date || "").slice(0, 16))}</td>
-            <td>${esc(s.emails && s.emails[0] ? s.emails[0] : "")}</td>
-            <td>${esc(s.subject || "")}</td>
-            <td>${esc(s.title || s.domain || "")}</td>
+            <td style="white-space:nowrap">${esc(String(time).slice(0, 16))}</td>
+            <td>${esc(to)}</td>
+            <td>${esc(String(s.subject || "").slice(0, 60))}</td>
+            <td>${esc(co)}</td>
+            <td style="white-space:nowrap">${stBadge}</td>
             <td><button class="ghost small" data-act="view" style="font-size:11px">${body ? "查看全文" : "無"}</button>
-                <div class="bodyprev">${esc(body)}</div></td>`;
+                <div class="bodyprev">${esc(body)}${bcc ? `<br><small style="color:#999">BCC: ${esc(bcc)}</small>` : ""}</div></td>`;
           tb.appendChild(tr);
         });
       }

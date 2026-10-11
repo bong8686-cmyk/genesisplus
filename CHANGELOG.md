@@ -83,3 +83,11 @@
 
 ### 資料庫（Supabase）
 - ✅ `genesisplus.sent_emails` 表已建立並啟用：create table + RLS + 3 個索引 + 2 條 RLS policy + service_role/authenticated 權限，已實測讀寫正常（smoke test 通過後已刪除）
+
+## 2026-10-12 · v20261012b — 後台權杖修復＋客戶庫直讀
+
+### 管理後台
+- **修復「後台睇唔到郵件／客戶」問題**：Worker 管理權杖失效導致所有 worker 數據請求 401，頁面空白。已重置 Worker `ADMIN_TOKEN` 並存入瀏覽器（「郵件設置」tab 重新填寫）
+- **🎯 客戶庫升級**：改為優先直讀 Supabase `leads` 表（登入後即可用，權杖失效都照睇），權杖失效時才 fallback 到 Worker
+- **📮 郵件記錄**：讀取容錯——Worker 權杖失效時唔再整頁空白，改為提示＋繼續顯示資料庫資料
+- 已部署 commit `f7c6148`

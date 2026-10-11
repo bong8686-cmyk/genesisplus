@@ -91,3 +91,14 @@
 - **🎯 客戶庫升級**：改為優先直讀 Supabase `leads` 表（登入後即可用，權杖失效都照睇），權杖失效時才 fallback 到 Worker
 - **📮 郵件記錄**：讀取容錯——Worker 權杖失效時唔再整頁空白，改為提示＋繼續顯示資料庫資料
 - 已部署 commit `f7c6148`
+
+## 2026-10-12 · v20261012c — 權杖雲端同步（多部電腦共用）
+
+### 管理後台
+- **Worker 管理權杖改為雲端自動取得**：登入後台後自動以登入身份向 Worker 取得權杖，存入本機暫存——換電腦／換瀏覽器登入即自動同步，唔使再手動貼權杖
+- 「郵件設置」tab 新增「☁️ 從雲端取得」按鈕：權杖失效／想重新同步時一鍵重取；仍保留手動貼上＋儲存作 fallback
+- Worker 請求遇 401（權杖失效）時自動清除本地暫存、重新從雲端取得後重試一次，唔會靜默失敗
+
+### Worker（lead-gen）
+- 新增 `GET /admin-token` 端點：以 Supabase 用戶 JWT 驗證身份（僅 superadmin：cyrus.chow@genesisplus.net / prefumeshop@gmail.com 可取），驗證通過才返回 ADMIN_TOKEN
+- 已部署 Version `368d35f1-3f8b-450a-95e0-ebce01517d01`；端到端實測：superadmin ✅、無 header 401 ✅、垃圾 JWT 401 ✅

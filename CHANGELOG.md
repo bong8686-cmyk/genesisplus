@@ -68,3 +68,18 @@
 | 日期 | 變更當日（香港時間） |
 | 版本 | 網站快取參數版本號 |
 | 內容 | 變更摘要，按前台／後台分類 |
+
+## 2026-10-12 · v20261012a — 已發郵件完整記錄（sent_emails）
+
+### 管理後台
+- **「✉️ 已發送郵件」升級**：除 KV 快照外，新增讀取 Supabase `genesisplus.sent_emails` 完整記錄表（每封郵件全文 + 收件人 + 主旨 + 公司/網域 + BCC + 狀態），表格新增「狀態」欄（sent / replied / bounced / complained / unsubscribed）
+- 表未建立或未登入時自動 fallback 到原 KV 資料，不會白畫面
+
+### Worker（lead-gen）
+- 每次自動發信成功後，將完整郵件內容寫入 Supabase `sent_emails` 表（to_email / subject / body / company / domain / lead_id / bcc_to / status / sent_at）
+- 測試郵件（/test-email）同樣記入 `sent_emails`，方便統一追蹤
+- 新增 `GET /emails` 管理端點（需管理權杖），支援 status / q / limit / offset 過濾，用 API 查已發郵件
+- 已部署 Version `8582b6b1-ad30-4ca5-ae1c-f3d75297d53c`
+
+### 待辦
+- Supabase 建立 `genesisplus.sent_emails` 表（SQL 已備妥，需在 dashboard 執行後啟用完整記錄；表未建前 worker 寫入會安全跳過、後台顯示 KV fallback）

@@ -81,5 +81,5 @@
 - 新增 `GET /emails` 管理端點（需管理權杖），支援 status / q / limit / offset 過濾，用 API 查已發郵件
 - 已部署 Version `8582b6b1-ad30-4ca5-ae1c-f3d75297d53c`
 
-### 待辦
-- Supabase 建立 `genesisplus.sent_emails` 表（SQL 已備妥，需在 dashboard 執行後啟用完整記錄；表未建前 worker 寫入會安全跳過、後台顯示 KV fallback）
+### 資料庫（Supabase）
+- ✅ `genesisplus.sent_emails` 表已建立並啟用：create table + RLS + 3 個索引 + 2 條 RLS policy + service_role/authenticated 權限，已實測讀寫正常（smoke test 通過後已刪除）

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unsubscribe | GenesisPlus Packaging</title>
+<link rel="icon" type="image/png" href="favicon.png?v=7">
+<link rel="icon" type="image/x-icon" href="favicon.ico?v=7">
+<script>try{var gpTheme=localStorage.getItem('gp-theme');if(gpTheme!=='light'&&gpTheme!=='dark'){gpTheme=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}document.documentElement.setAttribute('data-theme',gpTheme);}catch(e){}</script>
+<link rel="preconnect" href="https://miaoda.feishu.cn" crossorigin>
+<link href="https://miaoda.feishu.cn/fonts/css2?family=Inter:wght@400;500;600;700;800&family=Varela+Round&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css?v=20261013a">
+<style>
+  .unsub-wrap{min-height:100dvh;display:flex;flex-direction:column}
+  .unsub-top{padding:18px 0;border-bottom:1px solid var(--border, rgba(128,128,128,.18))}
+  .unsub-main{flex:1;display:flex;align-items:center;justify-content:center;padding:60px 20px}
+  .unsub-card{max-width:520px;width:100%;text-align:center}
+  .unsub-card h1{font-size:clamp(1.5rem,3.5vw,2rem);margin-bottom:10px}
+  .unsub-card p.sub{opacity:.75;margin-bottom:28px;font-size:.95rem}
+  .unsub-card input[type=email]{width:100%;padding:13px 16px;border-radius:12px;border:1px solid var(--border, rgba(128,128,128,.35));background:var(--card, rgba(255,255,255,.06));color:inherit;font:inherit;margin-bottom:12px;outline:none}
+  .unsub-card input[type=email]:focus{border-color:var(--accent,#F59E0B)}
+  .unsub-card .btn{width:100%;padding:13px;border-radius:12px;font-weight:600}
+  .unsub-result{margin-top:20px;padding:16px;border-radius:14px;font-size:.95rem;display:none;line-height:1.6}
+  .unsub-result.ok{display:block;background:rgba(22,163,74,.14);border:1px solid rgba(22,163,74,.4);color:var(--ok,#22c55e)}
+  .unsub-result.already{display:block;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.4);color:var(--warn,#f59e0b)}
+  .unsub-result.err{display:block;background:rgba(220,38,38,.14);border:1px solid rgba(220,38,38,.4);color:var(--err,#ef4444)}
+  .unsub-card .home-link{display:inline-block;margin-top:22px;font-size:.88rem;opacity:.75}
+  .unsub-card .home-link:hover{opacity:1}
+  .unsub-spinner{display:none;margin:18px auto;width:26px;height:26px;border:3px solid rgba(128,128,128,.25);border-top-color:var(--accent,#F59E0B);border-radius:50%;animation:unsubspin .8s linear infinite}
+  @keyframes unsubspin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body data-page="unsubscribe">
+<div class="unsub-wrap">
+  <header class="unsub-top">
+    <div class="container" style="display:flex;align-items:center;justify-content:space-between">
+      <a class="nav-logo" href="index.html"><img src="images/logo3color.png" alt="GenesisPlus Logo" class="nav-logo-img" style="height:34px;"><div class="nav-logo-text"><strong>GenesisPlus</strong><span>Packaging</span></div></a>
+      <a href="index.html" style="font-size:.85rem;opacity:.8">← Back to homepage</a>
+    </div>
+  </header>
+  <main class="unsub-main">
+    <div class="unsub-card">
+      <h1>Unsubscribe</h1>
+      <p class="sub" id="unsubIntro">Enter your email address below and we'll stop sending you emails. You can re-subscribe at any time.</p>
+      <form id="unsubForm" autocomplete="off">
+        <input type="email" id="unsubEmail" placeholder="you@example.com" required>
+        <button class="btn btn-primary" type="submit">Unsubscribe</button>
+      </form>
+      <div class="unsub-spinner" id="unsubSpinner"></div>
+      <div class="unsub-result" id="unsubResult" role="status" aria-live="polite"></div>
+      <a class="home-link" href="index.html">← Back to homepage</a>
+    </div>
+  </main>
+</div>
+<script>
+(function(){
+  var WORKER = "https://genesisplus-lead-gen.prefumeshop.workers.dev/unsubscribe";
+  var params = new URLSearchParams(location.search);
+  var email = (params.get("email") || "").trim();
+  var domain = (params.get("domain") || "").trim();
+  var intro = document.getElementById("unsubIntro");
+  var form = document.getElementById("unsubForm");
+  var emailInput = document.getElementById("unsubEmail");
+  var spinner = document.getElementById("unsubSpinner");
+  var result = document.getElementById("unsubResult");
+
+  function show(text, type){
+    result.className = "unsub-result " + type;
+    result.textContent = text;
+    result.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+
+  function run(e, d){
+    form.style.display = "none";
+    spinner.style.display = "block";
+    var payload = {};
+    if (e) payload.email = e;
+    if (d) payload.domain = d;
+    fetch(WORKER, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)})
+      .then(function(res){ return res.text(); })
+      .then(function(text){
+        spinner.style.display = "none";
+        if (text.indexOf("unsubscribed") !== -1) show("✅ " + text, "ok");
+        else if (text.indexOf("already") !== -1) show("ℹ️ " + text, "already");
+        else show(text, "err");
+      })
+      .catch(function(err){
+        spinner.style.display = "none";
+        show("Sorry, something went wrong. Please try again or email sales@genesisplus.net.", "err");
+      });
+  }
+
+  if (email || domain){
+    intro.textContent = "We're unsubscribing your address now. This may take a second…";
+    emailInput.value = email || "";
+    run(email, domain);
+  } else {
+    form.addEventListener("submit", function(ev){
+      ev.preventDefault();
+      var e = emailInput.value.trim();
+      if (!e) return;
+      run(e, "");
+    });
+  }
+})();
+</script>
+</body>
+</html>

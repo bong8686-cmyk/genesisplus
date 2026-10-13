@@ -480,7 +480,82 @@ const clientLogos = [
         function animateHeroStats() { if (window.__statsAnimated) return; window.__statsAnimated = true; const stats = Array.from(document.querySelectorAll('.hero-stat strong')); if (!stats.length) return; const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) return; stats.forEach(s => { const m = s.textContent.match(/([\d,.]+)(.*)/); if (!m) return; const target = parseFloat(m[1].replace(/,/g, '')); const suffix = m[2]; const dur = 1400, start = performance.now(); const fmt = n => Math.round(n).toLocaleString('en-US') + suffix; const iv = setInterval(() => { const p = Math.min((performance.now() - start) / dur, 1); const eased = 1 - Math.pow(1 - p, 3); s.textContent = fmt(target * eased); if (p >= 1) clearInterval(iv); }, 24); }); }
         function setupSpotlight() { try { const cards = document.querySelectorAll('.mode-card,.product-card,.case-card,.news-card,.scope-card'); if (!cards.length) return; cards.forEach(card => { card.addEventListener('mousemove', function(e) { const r = card.getBoundingClientRect(); card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100).toFixed(2) + '%'); card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100).toFixed(2) + '%'); }); }); } catch(e) {} }
         function setupTilt() { try { const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; if (reduce) return; const cards = document.querySelectorAll('.mode-card,.product-card,.case-card,.news-card,.scope-card'); if (!cards.length) return; cards.forEach(card => { const isMode = card.classList.contains('mode-card'); const isNews = card.classList.contains('news-card'); const isScope = card.classList.contains('scope-card'); const lift = (isMode || isScope) ? -11 : isNews ? -8 : -10; const scale = (isMode || isNews || isScope) ? 1.045 : 1.06; card.addEventListener('mousemove', function(e) { const r = card.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width; const py = (e.clientY - r.top) / r.height; const rx = (0.5 - py) * 8; const ry = (px - 0.5) * 8; card.style.transform = 'translateY(' + lift + 'px) scale(' + scale + ') rotateX(' + rx.toFixed(2) + 'deg) rotateY(' + ry.toFixed(2) + 'deg)'; }); card.addEventListener('mouseleave', function() { card.style.transform = ''; }); }); } catch(e) {} }
-        function init() { currentLanguage = detectPreferredLang(); document.documentElement.lang = currentLanguage; const langSel0 = document.getElementById('langSelect'); if (langSel0) langSel0.value = currentLanguage; applyTheme(getInitialTheme()); buildChatWidget(); applyAllTranslations(); renderProducts(); renderCaseFilters(); renderCases(); renderClients(); renderScope(); renderScopeModes(); setActiveNav(); setupContactValidation(); generateParticles(); runPreloader(); const yearEl = document.getElementById('footerYear'); if (yearEl) yearEl.textContent = new Date().getFullYear(); setupMotionEffects(); setupBackToTop(); setupSpotlight(); setupTilt(); setTimeout(animateHeroStats, 6500); }
+
+        // ========== A/B 測試 ==========
+        const WORKER_BASE = 'https://genesisplus-lead-gen.prefumeshop.workers.dev';
+        const AB_STORAGE_KEY = 'ab_variants';
+
+        function getStoredVariants() {
+            try { return JSON.parse(localStorage.getItem(AB_STORAGE_KEY)) || {}; }
+            catch(e) { return {}; }
+        }
+
+        function saveVariant(experimentId, variantId) {
+            const variants = getStoredVariants();
+            variants[experimentId] = variantId;
+            localStorage.setItem(AB_STORAGE_KEY, JSON.stringify(variants));
+        }
+
+        function assignVariant(experiment) {
+            const stored = getStoredVariants();
+            if (stored[experiment.id]) return stored[experiment.id];
+            // 按權重隨機分配
+            const totalWeight = experiment.variants.reduce((s, v) => s + (v.weight || 50), 0);
+            let rand = Math.random() * totalWeight;
+            for (const v of experiment.variants) {
+                rand -= (v.weight || 50);
+                if (rand <= 0) { saveVariant(experiment.id, v.id); return v.id; }
+            }
+            saveVariant(experiment.id, experiment.variants[0].id);
+            return experiment.variants[0].id;
+        }
+
+        function trackImpression(experimentId, variantId) {
+            fetch(WORKER_BASE + '/ab/impression', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ experimentId, variantId }),
+            }).catch(() => {});
+        }
+
+        function trackClick(experimentId, variantId) {
+            fetch(WORKER_BASE + '/ab/click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ experimentId, variantId }),
+            }).catch(() => {});
+        }
+
+        async function initABTests() {
+            try {
+                const resp = await fetch(WORKER_BASE + '/ab/experiments');
+                if (!resp.ok) return;
+                const experiments = await resp.json();
+                for (const exp of experiments) {
+                    if (!exp.active) continue;
+                    const variantId = assignVariant(exp);
+                    const variant = exp.variants.find(v => v.id === variantId);
+                    if (!variant) continue;
+                    // 應用變體到頁面元素（data-ab-experiment 屬性）
+                    const elements = document.querySelectorAll('[data-ab-experiment="' + exp.id + '"]');
+                    elements.forEach(el => {
+                        el.textContent = variant.label;
+                        el.setAttribute('data-ab-variant', variantId);
+                        // 記錄點擊
+                        el.addEventListener('click', () => trackClick(exp.id, variantId));
+                    });
+                    // 記錄曝光（如果頁面上有對應元素）
+                    if (elements.length > 0) {
+                        trackImpression(exp.id, variantId);
+                    }
+                }
+            } catch (e) {
+                console.log('AB test init skipped:', e.message);
+            }
+        }
+        // ========== A/B 測試結束 ==========
+
+        function init() { currentLanguage = detectPreferredLang(); document.documentElement.lang = currentLanguage; const langSel0 = document.getElementById('langSelect'); if (langSel0) langSel0.value = currentLanguage; applyTheme(getInitialTheme()); buildChatWidget(); applyAllTranslations(); renderProducts(); renderCaseFilters(); renderCases(); renderClients(); renderScope(); renderScopeModes(); setActiveNav(); setupContactValidation(); generateParticles(); runPreloader(); const yearEl = document.getElementById('footerYear'); if (yearEl) yearEl.textContent = new Date().getFullYear(); setupMotionEffects(); setupBackToTop(); setupSpotlight(); setupTilt(); initABTests(); setTimeout(animateHeroStats, 6500); }
         init();
         loadRemoteContent();
 

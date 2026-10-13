@@ -1205,6 +1205,237 @@
   }
 
   // ---- 初始化 ----
+
+  // ========== 📰 自動新聞 Tab ==========
+  function loadNewsTab() {
+    const status = $("githubTokenStatus");
+    if (status) status.textContent = "GITHUB_TOKEN 已配置，可正常使用";
+  }
+
+  function bindNewsEvents() {
+    const btn = $("btnFetchNews");
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", async () => {
+        const status = $("newsStatus");
+        const result = $("newsResult");
+        status.textContent = "抓取中...（約 30-60 秒）";
+        result.innerHTML = "";
+        try {
+          const data = await worker.call("/news-fetch", { method: "POST", body: JSON.stringify({}) });
+          if (data.error) {
+            status.textContent = "❌ " + data.error;
+          } else {
+            status.textContent = "✅ 完成！" + (data.commits ? " Commit: " + data.commits : "");
+            if (data.articles) {
+              result.innerHTML = data.articles.map((a, i) => `
+                <div style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
+                  <strong>${i+1}. ${a.title}</strong><br>
+                  <span style="color:#666;font-size:0.85rem">${a.summary || ""}</span><br>
+                  <a href="${a.url}" target="_blank" style="font-size:0.8rem;color:#2563EB">來源</a>
+                </div>
+              `).join("");
+            }
+          }
+        } catch (e) {
+          status.textContent = "❌ 錯誤: " + e.message;
+        }
+      });
+    }
+  }
+
+  // ========== 📊 SEO 監控 Tab ==========
+  function loadSeoTab() {
+    loadSeoHistory();
+  }
+
+  async function loadSeoHistory() {
+    const el = $("seoHistory");
+    if (!el) return;
+    try {
+      const data = await worker.call("/seo-audits");
+      const audits = data.audits || [];
+      if (audits.length) {
+        el.innerHTML = audits.map((a, i) => `
+          <div style="padding:10px;border-bottom:1px solid #eee">
+            <strong>#${audits.length - i}</strong> ${new Date(a.timestamp).toLocaleString()}
+            <span style="margin-left:12px;color:${a.averageScore >= 80 ? '#059669' : a.averageScore >= 60 ? '#D97706' : '#DC2626'};font-weight:600">
+              ${a.averageScore}/100
+            </span>
+            <span style="margin-left:12px;color:#666">${a.totalIssues} 個問題</span>
+          </div>
+        `).join("");
+      } else {
+        el.innerHTML = "暫無記錄，點擊上方按鈕執行首次審計";
+      }
+    } catch (e) {
+      el.innerHTML = "載入失敗: " + e.message;
+    }
+  }
+
+  function bindSeoEvents() {
+    const btn = $("btnRunSeoAudit");
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", async () => {
+        const status = $("seoStatus");
+        const result = $("seoResult");
+        status.textContent = "審計中...（約 1-2 分鐘）";
+        result.innerHTML = "";
+        try {
+          const data = await worker.call("/seo-audit", { method: "POST", body: JSON.stringify({}) });
+          if (data.error) {
+            status.textContent = "❌ " + data.error;
+          } else {
+            status.textContent = `✅ 完成！平均 ${data.averageScore}/100，${data.totalIssues} 個問題`;
+            result.innerHTML = data.pages.map(p => `
+              <div style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
+                <strong>${p.page}</strong>
+                <span style="margin-left:12px;color:${p.analysis.score >= 80 ? '#059669' : p.analysis.score >= 60 ? '#D97706' : '#DC2626'};font-weight:600">
+                  ${p.analysis.score}/100
+                </span>
+                ${p.analysis.issues.length ? '<br><span style="color:#DC2626;font-size:0.85rem">⚠️ ' + p.analysis.issues.slice(0,3).join('<br>⚠️ ') + '</span>' : ''}
+                ${p.analysis.suggestions.length ? '<br><span style="color:#2563EB;font-size:0.85rem">💡 ' + p.analysis.suggestions.slice(0,2).join('<br>💡 ') + '</span>' : ''}
+              </div>
+            `).join("");
+            loadSeoHistory();
+          }
+        } catch (e) {
+          status.textContent = "❌ 錯誤: " + e.message;
+        }
+      });
+    }
+  }
+
+  // ========== 📝 社交媒體 Tab ==========
+  function loadSocialTab() {
+    loadSocialHistory();
+  }
+
+  async function loadSocialHistory() {
+    const el = $("socialHistory");
+    if (!el) return;
+    try {
+      const posts = await worker.call("/social/posts");
+      if (posts && posts.length) {
+        el.innerHTML = posts.map(p => `
+          <div style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
+            <strong>${p.topic}</strong>
+            <span style="margin-left:8px;font-size:0.8rem;color:#666">${new Date(p.createdAt).toLocaleString()}</span>
+            <span style="margin-left:8px;font-size:0.75rem;padding:2px 8px;border-radius:4px;background:${p.status === 'published' ? '#059669' : p.status === 'approved' ? '#2563EB' : '#6B7280'};color:#fff">${p.status}</span>
+            <div style="margin-top:8px;font-size:0.85rem">
+              ${Object.entries(p.contents).map(([platform, text]) => `
+                <div style="margin-bottom:6px">
+                  <strong style="text-transform:uppercase;color:#7C3AED">${platform}:</strong>
+                  <span style="color:#444">${(text || '').substring(0, 100)}${(text || '').length > 100 ? '...' : ''}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `).join("");
+      } else {
+        el.innerHTML = "暫無內容，點擊上方按鈕生成";
+      }
+    } catch (e) {
+      el.innerHTML = "載入失敗: " + e.message;
+    }
+  }
+
+  function bindSocialEvents() {
+    const btn = $("btnGenerateSocial");
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", async () => {
+        const status = $("socialStatus");
+        const result = $("socialResult");
+        const topic = $("socialTopic").value;
+        status.textContent = "生成中...（約 30-60 秒）";
+        result.innerHTML = "";
+        try {
+          const data = await worker.call("/social/generate", { method: "POST", body: JSON.stringify({ topic: topic || null }) });
+          if (data.error) {
+            status.textContent = "❌ " + data.error;
+          } else {
+            status.textContent = "✅ 生成完成！";
+            result.innerHTML = `
+              <div style="padding:12px;background:#F5F3FF;border-radius:8px">
+                <strong>主題: ${data.topic}</strong>
+                ${Object.entries(data.contents).map(([platform, text]) => `
+                  <div style="margin-top:10px">
+                    <strong style="text-transform:uppercase;color:#7C3AED">${platform}:</strong>
+                    <p style="margin:4px 0;color:#444;white-space:pre-wrap">${text}</p>
+                  </div>
+                `).join("")}
+              </div>
+            `;
+            loadSocialHistory();
+          }
+        } catch (e) {
+          status.textContent = "❌ 錯誤: " + e.message;
+        }
+      });
+    }
+  }
+
+  // ========== 🧪 A/B 測試 Tab ==========
+  async function loadAbTab() {
+    const el = $("abStats");
+    if (!el) return;
+    el.innerHTML = "載入中...";
+    try {
+      const data = await worker.call("/ab/stats");
+      if (data.error) {
+        el.innerHTML = "❌ " + data.error;
+        return;
+      }
+      el.innerHTML = data.map(exp => `
+        <div style="padding:16px;border:1px solid #eee;border-radius:8px;margin-bottom:12px">
+          <h4 style="margin:0 0 8px 0">${exp.name} ${exp.active ? '<span style="font-size:0.75rem;color:#059669">● 運行中</span>' : '<span style="font-size:0.75rem;color:#6B7280">○ 已暫停</span>'}</h4>
+          <p style="color:#666;font-size:0.85rem;margin:0 0 12px 0">${exp.description}</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            ${exp.variants.map(v => {
+              const imp = exp.stats && exp.stats.impressions ? exp.stats.impressions[v.id] : 0;
+              const clk = exp.stats && exp.stats.clicks ? exp.stats.clicks[v.id] : 0;
+              const rate = exp.stats && exp.stats.conversionRates ? exp.stats.conversionRates[v.id] : "0.00";
+              return `
+                <div style="padding:12px;background:#F9FAFB;border-radius:6px">
+                  <strong>版本 ${v.id}: "${v.label}"</strong>
+                  <div style="margin-top:8px;font-size:0.85rem;color:#666">
+                    👁 曝光: ${imp}<br>
+                    👆 點擊: ${clk}<br>
+                    📈 轉化率: <strong style="color:#059669">${rate}%</strong>
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+          <div style="margin-top:12px;font-size:0.85rem;color:#666">
+            總曝光: ${exp.stats && exp.stats.totalImpressions ? exp.stats.totalImpressions : 0} | 總點擊: ${exp.stats && exp.stats.totalClicks ? exp.stats.totalClicks : 0}
+          </div>
+        </div>
+      `).join("");
+    } catch (e) {
+      el.innerHTML = "❌ 載入失敗: " + e.message;
+    }
+  }
+
+  function bindAbEvents() {
+    const btn = $("btnRefreshAb");
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", loadAbTab);
+    }
+  }
+
+  // 初始化所有新 tab 嘅事件綁定
+  function initNewTabs() {
+    bindNewsEvents();
+    bindSeoEvents();
+    bindSocialEvents();
+    bindAbEvents();
+  }
+
+
   function init() {
     supabase._load();
 
@@ -1303,6 +1534,8 @@
     $("emTable").addEventListener("click", emTableClick);
     $("emModalClose").addEventListener("click", emCloseModal);
     $("emModal").addEventListener("click", (e) => { if (e.target === $("emModal")) emCloseModal(); });
+
+    initNewTabs();
 
     if (supabase.session) {
       supabase._ensureToken().then(() => {

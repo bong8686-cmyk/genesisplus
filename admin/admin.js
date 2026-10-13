@@ -1535,14 +1535,13 @@
     $("emModalClose").addEventListener("click", emCloseModal);
     $("emModal").addEventListener("click", (e) => { if (e.target === $("emModal")) emCloseModal(); });
 
-    initNewTabs();
-
     if (supabase.session) {
       supabase._ensureToken().then(() => {
         showView("app");
         $("whoami").textContent = (supabase.session.user && supabase.session.user.email) || "";
         buildLangPills();
         renderContent();
+        initNewTabs(); // 登入成功後先綁定新 tab 事件
       }).catch((err) => { toast(err.message, "warn"); showView("login"); });
     } else {
       showView("login");

@@ -1349,23 +1349,53 @@
         const status = $("socialStatus");
         const result = $("socialResult");
         const topic = $("socialTopic").value;
-        status.textContent = "生成中...（約 30-60 秒）";
+        status.textContent = "生成中...（文字+圖片，約 60-90 秒）";
         result.innerHTML = "";
         try {
-          const data = await worker.call("/social/generate", { method: "POST", body: JSON.stringify({ topic: topic || null }) });
+          const data = await worker.call("/social/generate", { method: "POST", body: JSON.stringify({ topic: topic || null, includeImage: true }) });
           if (data.error) {
             status.textContent = "❌ " + data.error;
           } else {
             status.textContent = "✅ 生成完成！";
-            result.innerHTML = `
-              <div style="padding:12px;background:#F5F3FF;border-radius:8px">
-                <strong>主題: ${data.topic}</strong>
-                ${Object.entries(data.contents).map(([platform, text]) => `
-                  <div style="margin-top:10px">
-                    <strong style="text-transform:uppercase;color:#7C3AED">${platform}:</strong>
-                    <p style="margin:4px 0;color:#444;white-space:pre-wrap">${text}</p>
+            
+            // 圖片部分
+            let imageHtml = "";
+            if (data.image && data.image.image) {
+              imageHtml = `
+                <div style="margin-bottom:16px;text-align:center">
+                  <img src="${data.image.image}" style="max-width:100%;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1)" alt="Generated image">
+                  <div style="margin-top:8px">
+                    <a href="${data.image.image}" download="genesisplus-social-${Date.now()}.png" 
+                       style="display:inline-block;padding:8px 16px;background:#7C3AED;color:#fff;border-radius:6px;text-decoration:none;font-size:0.85rem">
+                      ⬇️ 下載圖片
+                    </a>
                   </div>
-                `).join("")}
+                  <div style="margin-top:6px;font-size:0.75rem;color:#999">Prompt: ${data.image.prompt?.substring(0, 100) || ''}...</div>
+                </div>
+              `;
+            } else {
+              imageHtml = '<div style="margin-bottom:16px;padding:12px;background:#FEF3C7;border-radius:8px;color:#92400E;font-size:0.85rem">⚠️ 圖片生成失敗，只有文字內容</div>';
+            }
+            
+            // 文字部分
+            const textHtml = Object.entries(data.contents).map(([platform, text]) => `
+              <div style="margin-top:12px;padding:12px;background:#fff;border:1px solid #E5E7EB;border-radius:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                  <strong style="text-transform:uppercase;color:#7C3AED;font-size:0.85rem">${platform}</strong>
+                  <button onclick="navigator.clipboard.writeText(this.dataset.text)" data-text="${(text || '').replace(/"/g, '&quot;').replace(/\n/g, ' ')}"
+                    style="padding:4px 10px;background:#F3F4F6;border:none;border-radius:4px;font-size:0.75rem;cursor:pointer">
+                    📋 複製
+                  </button>
+                </div>
+                <p style="margin:0;color:#444;white-space:pre-wrap;font-size:0.85rem">${text}</p>
+              </div>
+            `).join("");
+            
+            result.innerHTML = `
+              <div style="padding:16px;background:#F5F3FF;border-radius:8px">
+                <strong style="font-size:1rem">主題: ${data.topic}</strong>
+                ${imageHtml}
+                ${textHtml}
               </div>
             `;
             loadSocialHistory();

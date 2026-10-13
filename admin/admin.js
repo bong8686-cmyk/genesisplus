@@ -1318,11 +1318,29 @@
     try {
       const posts = await worker.call("/social/posts");
       if (posts && posts.length) {
-        el.innerHTML = posts.map(p => `
+        el.innerHTML = posts.map(p => {
+          // 圖片顯示
+          let imageHtml = "";
+          if (p.image && p.image.image) {
+            imageHtml = `
+              <div style="margin-top:8px;text-align:center">
+                <img src="${p.image.image}" style="max-width:200px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.1)" alt="Social image">
+                <div style="margin-top:4px">
+                  <a href="${p.image.image}" download="genesisplus-${p.id}.png" 
+                     style="font-size:0.75rem;color:#7C3AED;text-decoration:none">⬇️ 下載圖片</a>
+                </div>
+              </div>
+            `;
+          } else if (p.image && p.image.error) {
+            imageHtml = `<div style="margin-top:8px;font-size:0.75rem;color:#DC2626">⚠️ 圖片生成失敗: ${p.image.error}</div>`;
+          }
+          
+          return `
           <div style="padding:12px;border:1px solid #eee;border-radius:8px;margin-bottom:8px">
             <strong>${p.topic}</strong>
             <span style="margin-left:8px;font-size:0.8rem;color:#666">${new Date(p.createdAt).toLocaleString()}</span>
             <span style="margin-left:8px;font-size:0.75rem;padding:2px 8px;border-radius:4px;background:${p.status === 'published' ? '#059669' : p.status === 'approved' ? '#2563EB' : '#6B7280'};color:#fff">${p.status}</span>
+            ${imageHtml}
             <div style="margin-top:8px;font-size:0.85rem">
               ${Object.entries(p.contents).map(([platform, text]) => `
                 <div style="margin-bottom:6px">
@@ -1332,7 +1350,7 @@
               `).join("")}
             </div>
           </div>
-        `).join("");
+        `}).join("");
       } else {
         el.innerHTML = "暫無內容，點擊上方按鈕生成";
       }

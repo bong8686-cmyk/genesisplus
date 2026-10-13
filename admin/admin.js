@@ -200,12 +200,16 @@
   }
   function switchTab(tab) {
     document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
-    ["content", "email", "data", "emails", "leads", "ai", "aiJobs", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
+    ["content", "email", "data", "emails", "leads", "ai", "aiJobs", "news", "seo", "social", "abtest", "account"].forEach((t) => ($("tab-" + t).style.display = t === tab ? "" : "none"));
     if (tab === "data") loadData();
     if (tab === "email") loadEmailForm();
     if (tab === "emails") emLoad();
     if (tab === "aiJobs") ajLoad();
     if (tab === "leads") { ldLoad(); lsLoad(); }
+    if (tab === "news") loadNewsTab();
+    if (tab === "seo") loadSeoTab();
+    if (tab === "social") loadSocialTab();
+    if (tab === "abtest") loadAbTab();
   }
 
   // ---- 內容分組 ----

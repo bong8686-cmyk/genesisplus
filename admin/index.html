@@ -163,6 +163,10 @@
     <button data-tab="leads">🎯 客戶</button>
     <button data-tab="ai">🤖 AI 助手</button>
     <button data-tab="aiJobs">⏰ AI 自動任務</button>
+    <button data-tab="news">📰 自動新聞</button>
+    <button data-tab="seo">📊 SEO監控</button>
+    <button data-tab="social">📝 社交媒體</button>
+    <button data-tab="abtest">🧪 A/B測試</button>
     <button data-tab="account">帳戶</button>
   </div>
 
@@ -460,6 +464,75 @@
     <div class="card" id="ajResultsCard" style="display:none">
       <h3 id="ajResultsTitle">📄 執行結果</h3>
       <div id="ajResults" style="font-size:12px"></div>
+    </div>
+  </section>
+
+
+  <!-- 自動新聞 -->
+  <section id="tab-news" style="display:none">
+    <div class="card">
+      <h3>📰 自動行業新聞</h3>
+      <p style="color:#666;margin-bottom:16px">自動抓取包裝行業新聞，AI 總結後自動更新到網站 news.html</p>
+      <div class="row">
+        <button id="btnFetchNews" style="background:#B45309;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600">🔄 立即抓取新聞</button>
+        <span id="newsStatus" style="align-self:center;color:#666"></span>
+      </div>
+      <div id="newsResult" style="margin-top:16px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>⚙️ 設定</h3>
+      <p style="color:#666;margin-bottom:8px">需要配置 GITHUB_TOKEN 才能自動 commit push 到網站</p>
+      <p style="color:#666;font-size:0.85rem">狀態：<span id="githubTokenStatus">檢查中...</span></p>
+    </div>
+  </section>
+
+  <!-- SEO 監控 -->
+  <section id="tab-seo" style="display:none">
+    <div class="card">
+      <h3>📊 SEO 自動監控</h3>
+      <p style="color:#666;margin-bottom:16px">自動分析網站各頁面 meta 標籤，評分並給出優化建議</p>
+      <div class="row">
+        <button id="btnRunSeoAudit" style="background:#2563EB;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600">🔍 立即執行審計</button>
+        <span id="seoStatus" style="align-self:center;color:#666"></span>
+      </div>
+      <div id="seoResult" style="margin-top:16px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>📈 歷史記錄</h3>
+      <div id="seoHistory" style="color:#666">暫無記錄</div>
+    </div>
+  </section>
+
+  <!-- 社交媒體 -->
+  <section id="tab-social" style="display:none">
+    <div class="card">
+      <h3>📝 社交媒體內容生成</h3>
+      <p style="color:#666;margin-bottom:16px">AI 一次生成 LinkedIn / Facebook / Instagram / Twitter 四個平台內容</p>
+      <div class="row" style="margin-bottom:12px">
+        <div class="grow">
+          <label>主題（可留空隨機）</label>
+          <input id="socialTopic" placeholder="例如：Premium rigid gift boxes" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px">
+        </div>
+      </div>
+      <button id="btnGenerateSocial" style="background:#7C3AED;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600">✨ 生成內容</button>
+      <span id="socialStatus" style="margin-left:12px;color:#666"></span>
+      <div id="socialResult" style="margin-top:16px"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>📚 已生成內容</h3>
+      <div id="socialHistory" style="color:#666">暫無內容</div>
+    </div>
+  </section>
+
+  <!-- A/B 測試 -->
+  <section id="tab-abtest" style="display:none">
+    <div class="card">
+      <h3>🧪 A/B 測試</h3>
+      <p style="color:#666;margin-bottom:16px">測試不同版本嘅按鈕/標題，睇邊個轉化率高</p>
+      <div id="abStats" style="color:#666">載入中...</div>
+      <div class="row" style="margin-top:12px">
+        <button id="btnRefreshAb" style="background:#059669;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer">🔄 重新整理</button>
+      </div>
     </div>
   </section>
 

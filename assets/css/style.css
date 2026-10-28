@@ -259,3 +259,17 @@ html[lang="ja"] .hero-title{word-break:keep-all;overflow-wrap:normal}
 .product-card .product-image img{transition:transform .55s cubic-bezier(.2,.8,.3,1)}
 .product-card:hover .product-image img{transform:scale(1.12)}
 @media(prefers-reduced-motion:reduce){.product-card:hover .product-image img{transform:none}}
+
+/* ==== Lucide inline icons (v20261028) ==== */
+.gp-ic{display:inline-block;flex:none;vertical-align:-.15em;width:18px;height:18px}
+.gp-ic-14{width:14px;height:14px}
+.gp-ic-16{width:16px;height:16px}
+.gp-ic-18{width:18px;height:18px}
+.gp-ic-22{width:22px;height:22px}
+.gp-ic-26{width:26px;height:26px}
+.hero-badge{display:inline-flex;align-items:center;gap:7px}
+.hero-service-tag{display:inline-flex;gap:7px}
+.floating-tag{display:inline-flex;align-items:center;gap:6px}
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center}
+.scope-card-icon{display:inline-flex;align-items:center;justify-content:center}
+.mode-icon{display:inline-flex;align-items:center;justify-content:center}
